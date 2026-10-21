@@ -19,7 +19,7 @@ jobs:
     env:
       LLM_MODE: simulated # CI never calls a real model or needs secrets
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
