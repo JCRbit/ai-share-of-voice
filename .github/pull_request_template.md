@@ -27,8 +27,8 @@ Closes #
 <!-- UI, charts or run output. Delete if not applicable. -->
 
 ## Checklist
-- [ ] PR title follows Conventional Commits (`type(scope): subject`)
-- [ ] Tests added or updated and passing (`make check`)
+- [ ] PR title follows Conventional Commits (`type(scope): subject`); the reviewer checks it (no CI check)
+- [ ] Tests added or updated; `make check` passes locally (GitHub CI is unavailable)
 - [ ] Documentation updated where needed
 - [ ] No secrets or `.env` committed
 - [ ] Shared schemas unchanged, or team notified
