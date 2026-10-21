@@ -23,6 +23,11 @@ def test_valid_brief_uses_defaults() -> None:
     assert brief.target_half_width == pytest.approx(0.05)
 
 
+def test_max_batches_must_be_at_least_two() -> None:
+    with pytest.raises(ValidationError):
+        make_brief(max_batches=1)
+
+
 def test_brief_is_immutable() -> None:
     brief = make_brief()
     with pytest.raises(ValidationError):

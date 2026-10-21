@@ -37,7 +37,7 @@ class Brief(Contract):
     city: str = Field(min_length=2, max_length=100)
     language: str = Field(default="en", pattern=r"^[a-z]{2}$")
     spend_cap_usd: float = Field(gt=0, le=100)
-    max_batches: int = Field(default=10, ge=1, le=50)
+    max_batches: int = Field(default=10, ge=2, le=50)
     target_half_width: float = Field(default=0.05, gt=0, le=0.5)
 
     @model_validator(mode="after")
