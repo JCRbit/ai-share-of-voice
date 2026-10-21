@@ -1,6 +1,11 @@
 """Brand metrics and their confidence intervals (owner: E).
 
 Every result is a dated sample of one model's answers, never a market share.
+
+Each metric is a ratio of sums over answers (a ratio estimator): every answer weighs the
+same. With the balanced sampling plan (same number of answers per question in a batch)
+this equals the average over questions. Questions are the resampling unit, because
+answers to the same question are correlated.
 """
 
 import math
@@ -31,9 +36,11 @@ METRICS = (
     "recommendation_conversion",
     "net_tone",
 )
-# Metrics whose numerator counts successes among independent 0/1 trials.
+# Metrics whose numerator counts successes among 0/1 trials, where Wilson applies.
 BINOMIAL_METRICS = frozenset(METRICS) - {"share_of_voice", "net_tone"}
 TONE_SCORES = {Tone.POSITIVE.value: 1, Tone.NEUTRAL.value: 0, Tone.NEGATIVE.value: -1}
+# Below this many questions the cluster bootstrap tends to be too narrow.
+MIN_RELIABLE_QUESTIONS = 10
 
 
 def _check_confidence(confidence: float) -> None:
@@ -45,7 +52,8 @@ def wilson_interval(successes: int, n: int, confidence: float = 0.95) -> tuple[f
     """Wilson score interval for a proportion.
 
     Assumes the ``n`` trials are independent. Answers to the same question are not,
-    so this is the reference interval; the headline one is the cluster bootstrap.
+    so on its own this interval is too narrow; ``brand_metrics`` combines it with the
+    cluster bootstrap.
     """
     if n <= 0:
         raise ValueError("n must be positive")
@@ -59,6 +67,40 @@ def wilson_interval(successes: int, n: int, confidence: float = 0.95) -> tuple[f
     centre = (p + z**2 / (2 * n)) / denominator
     margin = z * math.sqrt(p * (1 - p) / n + z**2 / (4 * n**2)) / denominator
     return max(0.0, centre - margin), min(1.0, centre + margin)
+
+
+def _resample_questions(n_questions: int, n_resamples: int, seed: int) -> np.ndarray:
+    """Question indices drawn with replacement: one row per bootstrap resample."""
+    if n_questions < 2:
+        raise ValueError("the cluster bootstrap needs at least two questions")
+    if n_resamples < 1:
+        raise ValueError("n_resamples must be positive")
+    rng = np.random.default_rng(seed)
+    return rng.integers(0, n_questions, size=(n_resamples, n_questions))
+
+
+def _percentile_interval(
+    numerators: np.ndarray, denominators: np.ndarray, picks: np.ndarray, confidence: float
+) -> tuple[np.ndarray, np.ndarray]:
+    """Bootstrap interval of each column's ratio of sums; rows are questions.
+
+    Resamples with a zero denominator (e.g. a brand never mentioned, for the
+    conversion) have no ratio and are left out. A column without any ratio gives NaN.
+    """
+    resampled_num = numerators[picks].sum(axis=1)
+    resampled_den = denominators[picks].sum(axis=1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratios = np.where(resampled_den > 0, resampled_num / resampled_den, np.nan)
+
+    tail = (1 - confidence) / 2 * 100
+    low = np.full(ratios.shape[1], np.nan)
+    high = np.full(ratios.shape[1], np.nan)
+    defined = ~np.isnan(ratios).all(axis=0)
+    if defined.any():
+        low[defined], high[defined] = np.nanpercentile(
+            ratios[:, defined], [tail, 100 - tail], axis=0
+        )
+    return low, high
 
 
 def cluster_bootstrap_interval(
@@ -78,22 +120,11 @@ def cluster_bootstrap_interval(
     denominators = np.asarray(denominators, dtype=float)
     if numerators.shape != denominators.shape or numerators.ndim != 1:
         raise ValueError("numerators and denominators must be 1-D arrays of the same length")
-    if len(numerators) < 2:
-        raise ValueError("the cluster bootstrap needs at least two questions")
     _check_confidence(confidence)
 
-    rng = np.random.default_rng(seed)
-    picks = rng.integers(0, len(numerators), size=(n_resamples, len(numerators)))
-    resampled_den = denominators[picks].sum(axis=1)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        ratios = numerators[picks].sum(axis=1) / resampled_den
-    ratios = ratios[resampled_den > 0]
-    if ratios.size == 0:
-        return math.nan, math.nan
-
-    tail = (1 - confidence) / 2 * 100
-    low, high = np.percentile(ratios, [tail, 100 - tail])
-    return float(low), float(high)
+    picks = _resample_questions(len(numerators), n_resamples, seed)
+    low, high = _percentile_interval(numerators[:, None], denominators[:, None], picks, confidence)
+    return float(low[0]), float(high[0])
 
 
 def responses_to_frame(
@@ -124,21 +155,64 @@ def responses_to_frame(
 
 
 def load_answers(path: Path | str) -> pd.DataFrame:
-    """Read analyzed answers saved with the columns of ``ANSWER_COLUMNS``."""
+    """Read analyzed answers saved with the columns of ``ANSWER_COLUMNS``.
+
+    ``mentioned`` and ``recommended`` must be written as True/False.
+    """
     return _validate(pd.read_csv(path, dtype={"response_id": str, "question_id": str}))
 
 
 def _validate(answers: pd.DataFrame) -> pd.DataFrame:
+    """Check the answer table and return a normalised copy.
+
+    Brand names are stripped and matched without case ("glovo" and "Glovo" are one
+    brand, spelled as first seen); tones are stripped and lower-cased.
+    """
     if missing := set(ANSWER_COLUMNS) - set(answers.columns):
         raise ValueError(f"missing columns: {sorted(missing)}")
-    answers = answers.astype({"mentioned": bool, "recommended": bool, "position": "Int64"})
+    if answers.empty:
+        raise ValueError("there are no answers")
+    for column in ("mentioned", "recommended"):
+        if not pd.api.types.is_bool_dtype(answers[column]):
+            raise ValueError(f"{column} must contain only True/False values")
+
+    answers = answers.astype({"position": "Int64"})
+    brand = answers["brand"].astype(str).str.strip()
+    answers["brand"] = brand.groupby(brand.str.casefold()).transform("first")
+    answers["tone"] = answers["tone"].astype("string").str.strip().str.lower()
+
     if answers.duplicated(["response_id", "brand"]).any():
         raise ValueError("each brand can appear only once per response")
+    if answers.groupby("response_id")["question_id"].nunique().gt(1).any():
+        raise ValueError("each response must belong to a single question")
     if answers.groupby("response_id")["brand"].nunique().lt(answers["brand"].nunique()).any():
         raise ValueError("every response must list every brand")
     if (answers["recommended"] & ~answers["mentioned"]).any():
         raise ValueError("a brand cannot be recommended without being mentioned")
+    not_mentioned = ~answers["mentioned"]
+    if (not_mentioned & (answers["position"].notna() | answers["tone"].notna())).any():
+        raise ValueError("position and tone require the brand to be mentioned")
+    if answers["position"].lt(1).any():
+        raise ValueError("position starts at 1")
+    if unknown := set(answers["tone"].dropna()) - set(TONE_SCORES):
+        raise ValueError(f"unknown tone values: {sorted(unknown)}")
     return answers
+
+
+def _metric_parts(answers: pd.DataFrame) -> dict[str, tuple[pd.Series, pd.Series]]:
+    """Numerator and denominator of every metric, per answer and brand."""
+    one = pd.Series(1, index=answers.index)
+    mentioned = answers["mentioned"].astype(int)
+    recommended = answers["recommended"].astype(int)
+    tone = answers["tone"].map(TONE_SCORES).astype(float)
+    return {
+        "mention_rate": (mentioned, one),
+        "recommendation_rate": (recommended, one),
+        "top1_rate": (answers["position"].eq(1).fillna(False).astype(int), one),
+        "share_of_voice": (mentioned, mentioned.groupby(answers["response_id"]).transform("sum")),
+        "recommendation_conversion": (recommended, mentioned),
+        "net_tone": (tone.fillna(0), tone.notna().astype(int)),
+    }
 
 
 def brand_metrics(
@@ -149,58 +223,62 @@ def brand_metrics(
 ) -> pd.DataFrame:
     """Estimate and intervals of every metric in ``METRICS`` for every brand.
 
-    Each metric is a ratio of sums over answers, so the bootstrap resamples questions
-    and recomputes the ratio. Wilson is only reported for binomial metrics.
+    ``ci_low``/``ci_high`` is the headline interval:
+
+    - binomial metrics: the hull of Wilson and the cluster bootstrap, so it is never
+      narrower than either (the bootstrap alone collapses to a point when a brand is
+      never or always mentioned, and Wilson alone ignores the clustering);
+    - share of voice and net tone: the cluster bootstrap.
+
+    Every brand and metric uses the same question resamples, so brands are compared on
+    the same simulated panels. ``few_questions`` flags runs with fewer than
+    ``MIN_RELIABLE_QUESTIONS`` questions, where the intervals are too optimistic.
     """
+    _check_confidence(confidence)
     answers = _validate(answers)
-    mentioned = answers["mentioned"].astype(int)
-    recommended = answers["recommended"].astype(int)
-    tone = answers["tone"].map(TONE_SCORES)
-    parts = {
-        "mention_rate": (mentioned, 1),
-        "recommendation_rate": (recommended, 1),
-        "top1_rate": (answers["position"].eq(1).fillna(False).astype(int), 1),
-        "share_of_voice": (mentioned, mentioned.groupby(answers["response_id"]).transform("sum")),
-        "recommendation_conversion": (recommended, mentioned),
-        "net_tone": (tone.fillna(0), tone.notna().astype(int)),
-    }
+    questions = pd.unique(answers["question_id"])
+    brands = pd.unique(answers["brand"])
+    picks = _resample_questions(len(questions), n_resamples, seed)
+    keys = [answers["question_id"], answers["brand"]]
 
     rows = []
-    for metric, (numerator, denominator) in parts.items():
-        per_question = (
-            pd.DataFrame(
-                {
-                    "brand": answers["brand"],
-                    "question_id": answers["question_id"],
-                    "num": numerator,
-                    "den": denominator,
-                }
-            )
-            .groupby(["brand", "question_id"], sort=False)[["num", "den"]]
+    for metric, (numerator, denominator) in _metric_parts(answers).items():
+        num, den = (
+            values.groupby(keys)
             .sum()
+            .unstack("brand")
+            .reindex(index=questions, columns=brands)
+            .to_numpy(dtype=float)
+            for values in (numerator, denominator)
         )
-        for brand, group in per_question.groupby(level="brand", sort=False):
-            num, den = group["num"].sum(), group["den"].sum()
+        boot_low, boot_high = _percentile_interval(num, den, picks, confidence)
+        for column, brand in enumerate(brands):
+            total_num, total_den = num[:, column].sum(), den[:, column].sum()
             wilson = (
-                wilson_interval(int(num), int(den), confidence)
-                if metric in BINOMIAL_METRICS and den > 0
+                wilson_interval(int(total_num), int(total_den), confidence)
+                if metric in BINOMIAL_METRICS and total_den > 0
                 else (math.nan, math.nan)
-            )
-            bootstrap = cluster_bootstrap_interval(
-                group["num"].to_numpy(), group["den"].to_numpy(), confidence, n_resamples, seed
             )
             rows.append(
                 {
                     "brand": brand,
                     "metric": metric,
-                    "estimate": num / den if den > 0 else math.nan,
-                    "numerator": float(num),
-                    "denominator": float(den),
-                    "n_questions": len(group),
+                    "estimate": total_num / total_den if total_den > 0 else math.nan,
+                    "ci_low": float(np.fmin(wilson[0], boot_low[column])),
+                    "ci_high": float(np.fmax(wilson[1], boot_high[column])),
+                    "ci_method": (
+                        "wilson_bootstrap_hull"
+                        if metric in BINOMIAL_METRICS
+                        else "cluster_bootstrap"
+                    ),
+                    "numerator": total_num,
+                    "denominator": total_den,
+                    "n_questions": len(questions),
+                    "few_questions": len(questions) < MIN_RELIABLE_QUESTIONS,
                     "wilson_low": wilson[0],
                     "wilson_high": wilson[1],
-                    "bootstrap_low": bootstrap[0],
-                    "bootstrap_high": bootstrap[1],
+                    "bootstrap_low": float(boot_low[column]),
+                    "bootstrap_high": float(boot_high[column]),
                 }
             )
     return pd.DataFrame(rows)

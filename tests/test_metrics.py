@@ -7,6 +7,7 @@ import pytest
 from ai_share_of_voice.schemas import AnalyzedResponse, BrandMention, Tone
 from ai_share_of_voice.stats.metrics import (
     METRICS,
+    MIN_RELIABLE_QUESTIONS,
     brand_metrics,
     cluster_bootstrap_interval,
     load_answers,
@@ -198,3 +199,123 @@ def test_duplicated_brand_in_a_response_is_rejected() -> None:
     answers = load_answers(FIXTURE)
     with pytest.raises(ValueError, match="only once"):
         brand_metrics(pd.concat([answers, answers.iloc[[0]]]))
+
+
+def make_answers(mentions: dict[str, list[bool]]) -> pd.DataFrame:
+    """One brand "A" and a never-mentioned brand "B"; keys are question ids."""
+    rows = []
+    for question_id, flags in mentions.items():
+        for index, flag in enumerate(flags):
+            response_id = f"{question_id}-{index}"
+            for brand, mentioned in (("A", flag), ("B", False)):
+                rows.append(
+                    {
+                        "response_id": response_id,
+                        "question_id": question_id,
+                        "batch_index": 0,
+                        "brand": brand,
+                        "mentioned": mentioned,
+                        "recommended": False,
+                        "position": 1 if mentioned else None,
+                        "tone": None,
+                    }
+                )
+    return pd.DataFrame(rows)
+
+
+def mention_row(answers: pd.DataFrame, brand: str = "A") -> pd.Series:
+    result = brand_metrics(answers).set_index(["brand", "metric"])
+    return result.loc[(brand, "mention_rate")]
+
+
+def test_every_answer_weighs_the_same() -> None:
+    # q1 has 4 answers that all mention A, q2 has 2 that do not: 4 of 6 answers, not 1/2.
+    row = mention_row(make_answers({"q1": [True] * 4, "q2": [False] * 2}))
+    assert row["estimate"] == pytest.approx(4 / 6)
+
+
+def test_never_mentioned_brand_keeps_a_non_degenerate_interval() -> None:
+    answers = make_answers({f"q{i}": [True, False, False] for i in range(12)})
+    row = mention_row(answers, brand="B")
+    assert row["bootstrap_high"] == pytest.approx(0.0)
+    assert row["ci_low"] == pytest.approx(0.0)
+    assert row["ci_high"] == pytest.approx(row["wilson_high"]) and row["ci_high"] > 0
+
+
+def test_headline_interval_covers_wilson_and_bootstrap(metrics: pd.DataFrame) -> None:
+    binomial = metrics[metrics["ci_method"] == "wilson_bootstrap_hull"]
+    assert (binomial["ci_low"] <= binomial[["wilson_low", "bootstrap_low"]].min(axis=1)).all()
+    assert (binomial["ci_high"] >= binomial[["wilson_high", "bootstrap_high"]].max(axis=1)).all()
+    other = metrics[metrics["ci_method"] == "cluster_bootstrap"]
+    assert (other["ci_low"] == other["bootstrap_low"]).all()
+
+
+def test_few_questions_are_flagged(metrics: pd.DataFrame) -> None:
+    assert metrics["few_questions"].all()
+    answers = make_answers({f"q{i}": [True, False] for i in range(MIN_RELIABLE_QUESTIONS)})
+    assert not mention_row(answers)["few_questions"]
+
+
+def test_brands_are_resampled_with_the_same_questions() -> None:
+    # B mirrors A, so with shared resamples their intervals are mirror images.
+    answers = make_answers({f"q{i}": [i % 3 == 0, True] for i in range(12)})
+    answers.loc[answers["brand"] == "B", "mentioned"] = ~answers.loc[
+        answers["brand"] == "A", "mentioned"
+    ].to_numpy()
+    answers.loc[answers["brand"] == "B", "position"] = None
+    result = brand_metrics(answers).set_index(["brand", "metric"])
+    a, b = result.loc[("A", "mention_rate")], result.loc[("B", "mention_rate")]
+    assert a["bootstrap_low"] == pytest.approx(1 - b["bootstrap_high"])
+
+
+def test_brand_names_are_matched_without_case() -> None:
+    answers = load_answers(FIXTURE)
+    answers.loc[answers["response_id"] == "r2", "brand"] = answers.loc[
+        answers["response_id"] == "r2", "brand"
+    ].str.lower()
+    result = brand_metrics(answers)
+    assert set(result["brand"]) == set(BRANDS)
+
+
+def test_non_boolean_flags_are_rejected() -> None:
+    answers = load_answers(FIXTURE).astype({"mentioned": str})
+    with pytest.raises(ValueError, match="True/False"):
+        brand_metrics(answers)
+
+
+def test_unknown_tone_is_rejected() -> None:
+    answers = load_answers(FIXTURE)
+    answers.loc[0, "tone"] = "great"
+    with pytest.raises(ValueError, match="unknown tone"):
+        brand_metrics(answers)
+
+
+def test_tone_is_normalised() -> None:
+    answers = load_answers(FIXTURE)
+    answers.loc[0, "tone"] = " Neutral "
+    result = brand_metrics(answers).set_index(["brand", "metric"])
+    assert result.loc[("Just Eat", "net_tone"), "estimate"] == pytest.approx(2 / 3)
+
+
+def test_tone_without_mention_is_rejected() -> None:
+    answers = load_answers(FIXTURE)
+    answers.loc[2, "tone"] = "positive"
+    with pytest.raises(ValueError, match="require the brand to be mentioned"):
+        brand_metrics(answers)
+
+
+def test_response_in_two_questions_is_rejected() -> None:
+    answers = load_answers(FIXTURE)
+    answers.loc[0, "question_id"] = "q9"
+    with pytest.raises(ValueError, match="single question"):
+        brand_metrics(answers)
+
+
+def test_empty_answers_are_rejected() -> None:
+    with pytest.raises(ValueError, match="no answers"):
+        brand_metrics(load_answers(FIXTURE).iloc[0:0])
+
+
+def test_invalid_resample_count_is_rejected() -> None:
+    with pytest.raises(ValueError, match="n_resamples"):
+        cluster_bootstrap_interval(np.array([1, 2]), np.array([2, 2]), n_resamples=0)
