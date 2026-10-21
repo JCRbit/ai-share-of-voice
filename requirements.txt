@@ -1,7 +1,4 @@
-# Runtime dependencies. After the first install, pin exact versions:
-#   pip freeze | grep -iE '^(pydantic|pandas|matplotlib|python-dotenv)=='
-# CrewAI, LangGraph, MCP and Gradio are added in their own PRs.
-pydantic>=2.7
-pandas>=2.2
-matplotlib>=3.8
-python-dotenv>=1.0
+matplotlib==3.11.2
+pandas==3.0.6
+pydantic==2.14.1
+python-dotenv==1.2.4
