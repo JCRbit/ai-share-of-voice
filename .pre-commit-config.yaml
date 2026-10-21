@@ -1,14 +1,23 @@
 # Local quality gates while GitHub Actions is unavailable.
+# Install dependencies from requirements-dev.txt before running hooks.
 # Install once per clone:
 #   pre-commit install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
-# Bump versions with: pre-commit autoupdate
+# Bump remote hook versions with: pre-commit autoupdate
+
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+  - repo: local
     hooks:
       - id: ruff
-        args: [--fix]
+        name: ruff
+        entry: ruff check --fix
+        language: system
+        types: [python]
+
       - id: ruff-format
+        name: ruff-format
+        entry: ruff format
+        language: system
+        types: [python]
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.4.0
