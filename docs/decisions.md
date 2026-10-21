@@ -1,0 +1,47 @@
+# Project decisions
+
+Task C4. Record every decision the team closes before day 1. Update the status and the date when a decision changes; do not delete old ones.
+
+| # | Decision | Status | Decided on | Owner |
+| --- | --- | --- | --- | --- |
+| 1 | Roles | Decided | 2026-10-21 | All |
+| 2 | Demo sector and city | Pending | | |
+| 3 | Model, provider and spending cap | Pending | | |
+| 4 | Fit as a market study | Pending | | |
+| 5 | Cloudista case | Pending | | |
+
+## 1. Roles
+
+| Department | Person |
+| --- | --- |
+| P1 Data and Statistics | E |
+| P2 Agents and Orchestration | J |
+| P3 Integrations and Platform | An |
+| P4 Product and Documentation | Ab |
+
+PR review rotation: E reviews J, J reviews An, An reviews E, and E reviews Ab (mentor).
+
+## 2. Demo sector and city
+
+- Proposal: food-delivery brands in one city.
+- Constraint: the model must know the competitors, otherwise almost all answers measure zero.
+- Decision: _pending_
+- Sector: _pending_ · City: _pending_ · Competitors (2 to 5): see `data/competitors.csv`
+
+## 3. Model, provider and spending cap
+
+- Subject model (the one measured) and agent model (the one that runs the agents) may differ.
+- Decision: _pending_
+- Subject model: _pending_ · Agent model: _pending_ · Provider: _pending_
+- Cap per person (USD): _pending_ · Cap per run (USD): _pending_
+
+## 4. Fit as a market study
+
+- Question for the training team: does AI-visibility monitoring fit the "market research" brief?
+- Asked on: _pending_ · Answer: _pending_
+- If it does not fit: _pending_
+
+## 5. Cloudista case
+
+- Agreed position: its sector (food delivery) is used for the demo, and its ethical case (not delegating allergen checks to vision) is presented as an example of a decision that is not delegated. It is not the product.
+- Confirmed with whoever proposed it: _pending_
