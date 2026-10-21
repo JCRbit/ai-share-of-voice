@@ -1,0 +1,9 @@
+# Replace the placeholder handles with real GitHub handles.
+# E = Data & Statistics, J = Agents & Orchestration, An = Integrations & Platform, Ab = Product & Docs
+/src/ai_share_of_voice/schemas/        @adryeli @JCRbit @Anasfady
+/src/ai_share_of_voice/stats/          @adryeli
+/src/ai_share_of_voice/agents/         @JCRbit
+/src/ai_share_of_voice/mcp_server/     @Anasfady
+/.github/                              @Anasfady
+/docs/                                 @5nhn007
+/data/                                 @5nhn007
