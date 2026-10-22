@@ -56,7 +56,9 @@ class MentionExtractionInput(Contract):
         seen: dict[str, tuple[int, str]] = {}
         for index, brand in enumerate(self.brands):
             for name in brand.all_names():
-                owner_index, owner_name = seen.setdefault(normalize_brand_name(name), (index, brand.name))
+                owner_index, owner_name = seen.setdefault(
+                    normalize_brand_name(name), (index, brand.name)
+                )
                 if owner_index != index:
                     raise ValueError(f"'{name}' is used by both '{owner_name}' and '{brand.name}'")
         return self
