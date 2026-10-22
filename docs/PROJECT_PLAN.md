@@ -50,6 +50,10 @@ Cross-review (nobody approves their own PR): `E → J → An → E`, and `Ab →
 
 **Cut line (day 7, no stable run):** tone metric → external-site vision → UI extras. Never cut: stopping rule, MCP, Skeptic, human pause.
 
+### Current implementation status
+
+The repository currently has the C1 shared contracts and the A1 LangGraph skeleton implemented. A1 is intentionally simulated: its nodes use fake clients and data so the graph can be exercised before the real integrations are added. The C0/I2 smoke runner is `mock_run.py`; it executes the simulated graph through the human approval pause and resumes it with a demo approval.
+
 ## 4. Tasks and files per person
 
 ### Everyone — Phase 0 (days 0–1)
