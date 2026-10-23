@@ -4,11 +4,12 @@ Task C4. Record every decision the team closes before day 1. Update the status a
 
 | # | Decision | Status | Decided on | Owner |
 | --- | --- | --- | --- | --- |
-| 1 | Roles | Decided | 2026-10-21 | All |
+| 1 | Roles | Decided | 2026-10-23 | All |
 | 2 | Demo sector and city | Pending | | |
 | 3 | Model, provider and spending cap | Pending | | |
 | 4 | Fit as a market study | Pending | | |
 | 5 | Cloudista case | Pending | | |
+| 6 | Python version | Decided | 2026-10-23 | All |
 
 ## 1. Roles
 
@@ -45,3 +46,8 @@ PR review rotation: E reviews J, J reviews An, An reviews E, and E reviews Ab (m
 
 - Agreed position: its sector (food delivery) is used for the demo, and its ethical case (not delegating allergen checks to vision) is presented as an example of a decision that is not delegated. It is not the product.
 - Confirmed with whoever proposed it: _pending_
+
+## 6. Python version
+
+- CrewAI 1.x requires Python below 3.14 and pydantic below 2.13.
+- Decision: Python 3.12 for everyone (3.13 also works); pydantic pinned below 2.13.
