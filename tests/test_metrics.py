@@ -141,13 +141,6 @@ def test_wilson_is_only_reported_for_binomial_metrics(metrics: pd.DataFrame) -> 
     assert metrics.xs("mention_rate", level="metric")["wilson_low"].notna().all()
 
 
-def test_bootstrap_reflects_mentions_concentrated_in_one_question(metrics: pd.DataFrame) -> None:
-    # Every Just Eat mention comes from q2: without q2 in a resample its rate is 0.
-    row = metrics.loc[("Just Eat", "mention_rate")]
-    assert row["bootstrap_low"] == pytest.approx(0.0)
-    assert row["wilson_low"] > 0.18
-
-
 def test_responses_to_frame_matches_the_csv() -> None:
     responses = [
         AnalyzedResponse(
@@ -255,6 +248,16 @@ def test_every_answer_weighs_the_same() -> None:
     # q1 has 4 answers that all mention A, q2 has 2 that do not: 4 of 6 answers, not 1/2.
     row = mention_row(make_answers({"q1": [True] * 4, "q2": [False] * 2}))
     assert row["estimate"] == pytest.approx(4 / 6)
+
+
+def test_bootstrap_reflects_mentions_concentrated_in_one_question() -> None:
+    # A is mentioned only in q0: about (11/12)**12 = 35% of resamples leave q0 out and give
+    # a rate of 0, so the bootstrap reaches 0 while Wilson, which sees 2 of 24, does not.
+    answers = make_answers({"q0": [True, True], **{f"q{i}": [False, False] for i in range(1, 12)}})
+    row = mention_row(answers)
+    assert row["estimate"] == pytest.approx(2 / 24)
+    assert row["bootstrap_low"] == pytest.approx(0.0)
+    assert row["wilson_low"] > 0
 
 
 def test_never_mentioned_brand_keeps_a_non_degenerate_interval() -> None:
