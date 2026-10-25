@@ -243,6 +243,11 @@ def brand_metrics(
       never or always mentioned, and Wilson alone ignores the clustering);
     - share of voice and net tone: the cluster bootstrap.
 
+    The hull is a conservative reporting rule, not a calibrated interval: being at
+    least as wide as each component does not prove 95% coverage under clustered
+    sampling, and its coverage has not been validated by simulation. Report it as
+    "at least as wide as the Wilson and the question-level bootstrap intervals".
+
     Every brand and metric uses the same question resamples, so brands are compared on
     the same simulated panels. ``few_questions`` flags runs with fewer than
     ``MIN_RELIABLE_QUESTIONS`` questions, where the intervals are too optimistic.
