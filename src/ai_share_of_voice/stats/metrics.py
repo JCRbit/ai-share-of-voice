@@ -127,18 +127,31 @@ def cluster_bootstrap_interval(
     return float(low[0]), float(high[0])
 
 
+def _brand_key(brand: str) -> str:
+    """Matching key of a brand name: "Glovo", "glovo" and " Glovo " are one brand."""
+    return brand.strip().casefold()
+
+
 def responses_to_frame(
     responses: Iterable[AnalyzedResponse], brands: Sequence[str]
 ) -> pd.DataFrame:
     """One row per answer and brand; a brand missing from an answer was not mentioned."""
-    known = {brand.casefold() for brand in brands}
+    known = [_brand_key(brand) for brand in brands]
+    if len(known) != len(set(known)):
+        raise ValueError("tracked brands must be unique ignoring case and spaces")
     rows = []
     for response in responses:
-        by_brand = {mention.brand.casefold(): mention for mention in response.mentions}
-        if unknown := set(by_brand) - known:
+        # Check collisions before building the dict, or one entry would silently win.
+        keys = [_brand_key(mention.brand) for mention in response.mentions]
+        if len(keys) != len(set(keys)):
+            raise ValueError(
+                f"each brand can appear only once per response: {response.response_id}"
+            )
+        by_brand = dict(zip(keys, response.mentions, strict=True))
+        if unknown := set(by_brand) - set(known):
             raise ValueError(f"unknown brands in {response.response_id}: {sorted(unknown)}")
         for brand in brands:
-            mention = by_brand.get(brand.casefold())
+            mention = by_brand.get(_brand_key(brand))
             rows.append(
                 {
                     "response_id": response.response_id,
@@ -178,7 +191,7 @@ def _validate(answers: pd.DataFrame) -> pd.DataFrame:
 
     answers = answers.astype({"position": "Int64"})
     brand = answers["brand"].astype(str).str.strip()
-    answers["brand"] = brand.groupby(brand.str.casefold()).transform("first")
+    answers["brand"] = brand.groupby(brand.map(_brand_key)).transform("first")
     answers["tone"] = answers["tone"].astype("string").str.strip().str.lower()
 
     if answers.duplicated(["response_id", "brand"]).any():

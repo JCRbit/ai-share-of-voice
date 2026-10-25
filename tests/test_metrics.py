@@ -177,6 +177,29 @@ def test_responses_to_frame_rejects_unknown_brands() -> None:
         responses_to_frame([response], BRANDS)
 
 
+@pytest.mark.parametrize("second", ["glovo", " Glovo "])
+def test_responses_to_frame_rejects_brands_that_collide_after_normalisation(second: str) -> None:
+    # model_construct skips the schema check, as a producer that bypasses it would.
+    response = AnalyzedResponse.model_construct(
+        response_id="r1",
+        question_id="q1",
+        batch_index=0,
+        mentions=(
+            BrandMention(brand="Glovo", mentioned=True, recommended=True, position=1),
+            BrandMention.model_construct(
+                brand=second, mentioned=False, recommended=False, position=None, tone=None
+            ),
+        ),
+    )
+    with pytest.raises(ValueError, match="only once"):
+        responses_to_frame([response], BRANDS)
+
+
+def test_responses_to_frame_rejects_duplicated_tracked_brands() -> None:
+    with pytest.raises(ValueError, match="tracked brands"):
+        responses_to_frame([], ("Glovo", "glovo"))
+
+
 def test_every_response_must_list_every_brand() -> None:
     answers = load_answers(FIXTURE).iloc[1:]
     with pytest.raises(ValueError, match="every brand"):
