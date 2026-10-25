@@ -28,9 +28,11 @@ jobs:
             requirements.txt
             requirements-dev.txt
       - run: pip install -r requirements-dev.txt
+      - run: pip install -e .
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest -q --cov=ai_share_of_voice --cov-report=term-missing
+      - run: python mock_run.py
 
   pr-title:
     # With squash merge the PR title becomes the commit message on main.

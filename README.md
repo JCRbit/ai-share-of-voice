@@ -9,7 +9,7 @@ Project III, Module V (AI Engineering) — AgentSquad: multi-agent system with C
 > claimed between a web source and a recommendation.
 
 ## Status
-Phase 0 scaffold. See [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) for phases, owners and tasks.
+C1 shared contracts and the A1 LangGraph skeleton are implemented. The A1 graph uses simulated nodes, bounded loops, SQLite checkpointing, human approval and JSONL audit events. See [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) for phases, owners and tasks.
 
 ## Quick start
 ```bash
