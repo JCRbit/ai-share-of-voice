@@ -1,0 +1,31 @@
+id,text,intent
+q01,¿Cuál es la mejor app de comida a domicilio en Madrid?,recommendation
+q02,¿Qué app me recomiendas para pedir la cena a casa en Madrid?,recommendation
+q03,Me acabo de mudar a Madrid. ¿Qué servicio de comida a domicilio me recomiendas?,recommendation
+q04,¿Cuál es la app más popular para pedir comida en Madrid?,recommendation
+q05,¿Qué app de reparto de comida usa más la gente en Madrid?,recommendation
+q06,Recomiéndame una forma fiable de pedir comida de restaurante a domicilio en Madrid.,recommendation
+q07,¿Qué app de comida a domicilio en Madrid tiene más variedad de restaurantes?,comparison
+q08,¿Qué diferencias hay entre las apps de comida a domicilio que funcionan en Madrid?,comparison
+q09,¿Qué app de reparto es la más rápida en Madrid?,comparison
+q10,Compara los servicios de comida a domicilio que operan en Madrid.,comparison
+q11,¿Qué app de comida a domicilio en Madrid es más fácil de usar?,comparison
+q12,¿Qué ventajas e inconvenientes tienen las apps de comida a domicilio en Madrid?,comparison
+q13,¿Cuál es la app de comida a domicilio más barata en Madrid?,price
+q14,¿Qué app de reparto en Madrid tiene los gastos de envío más bajos?,price
+q15,¿Merece la pena alguna suscripción de comida a domicilio en Madrid?,price
+q16,¿Qué app de comida a domicilio en Madrid tiene los mejores descuentos para nuevos usuarios?,price
+q17,¿Dónde puedo conseguir envío gratis al pedir comida en Madrid?,price
+q18,¿Qué app de reparto tiene la mejor relación calidad-precio en Madrid?,price
+q19,¿Qué apps de comida a domicilio funcionan de madrugada en Madrid?,service_area
+q20,¿Puedo pedir la compra del supermercado además de comida de restaurante con una app en Madrid?,service_area
+q21,¿Qué apps de reparto llegan a las afueras de Madrid?,service_area
+q22,¿Cómo puedo pedir comida a mi oficina en el centro de Madrid?,service_area
+q23,¿Qué apps traen comida de restaurantes de barrio en Madrid y no solo de cadenas?,service_area
+q24,¿Qué servicio de comida a domicilio en Madrid reparte domingos y festivos?,service_area
+q25,¿Qué app de comida a domicilio en Madrid tiene la mejor atención al cliente?,trust_reviews
+q26,¿Qué app de reparto en Madrid es más fiable para que el pedido llegue a tiempo?,trust_reviews
+q27,¿Qué empresa de comida a domicilio en Madrid trata mejor a sus repartidores?,trust_reviews
+q28,¿Qué app de reparto en Madrid gestiona mejor los reembolsos por pedidos equivocados?,trust_reviews
+q29,¿Qué app de comida a domicilio en Madrid tiene mejores opiniones?,trust_reviews
+q30,¿Qué app de reparto en Madrid es más segura para personas con alergias alimentarias?,trust_reviews

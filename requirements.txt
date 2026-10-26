@@ -1,7 +1,7 @@
 matplotlib==3.11.2
 numpy==2.5.4
 pandas==3.0.6
-pydantic==2.14.1
+pydantic>=2.11.9,<2.13
 python-dotenv==1.2.4
 langgraph==1.2.16
 langgraph-checkpoint-sqlite==3.1.2
