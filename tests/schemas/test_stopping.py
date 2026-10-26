@@ -33,6 +33,48 @@ def test_config_defaults() -> None:
     assert config.patience == 2
 
 
+def test_config_reserves_part_of_the_cap_for_the_agents_by_default() -> None:
+    config = StopConfig(target_half_width=0.05, max_batches=10, max_spend_usd=2.0)
+    assert config.sampling_budget_share == pytest.approx(0.7)
+    assert config.agent_reserve_usd == pytest.approx(0.2)
+    assert config.sampling_budget_usd == pytest.approx(1.4)
+
+
+def test_the_minimum_reserve_wins_when_the_cap_is_small() -> None:
+    # 70% of 0.50 would leave 0.15 for the agents, below the 0.20 minimum.
+    config = StopConfig(target_half_width=0.05, max_batches=10, max_spend_usd=0.5)
+    assert config.sampling_budget_usd == pytest.approx(0.3)
+
+
+def test_the_sampling_budget_is_never_negative() -> None:
+    config = StopConfig(target_half_width=0.05, max_batches=10, max_spend_usd=0.1)
+    assert config.sampling_budget_usd == 0.0
+
+
+def test_the_whole_cap_can_go_to_sampling_when_asked() -> None:
+    config = StopConfig(
+        target_half_width=0.05,
+        max_batches=10,
+        max_spend_usd=2.0,
+        sampling_budget_share=1.0,
+        agent_reserve_usd=0.0,
+    )
+    assert config.sampling_budget_usd == pytest.approx(2.0)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"sampling_budget_share": 0.0},
+        {"sampling_budget_share": 1.2},
+        {"agent_reserve_usd": -0.1},
+    ],
+)
+def test_invalid_budget_split_is_rejected(overrides: dict[str, float]) -> None:
+    with pytest.raises(ValidationError):
+        StopConfig(target_half_width=0.05, max_batches=10, max_spend_usd=2.0, **overrides)
+
+
 def test_config_rejects_min_above_max() -> None:
     with pytest.raises(ValidationError):
         StopConfig(target_half_width=0.05, min_batches=5, max_batches=3, max_spend_usd=2.0)
