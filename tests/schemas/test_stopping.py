@@ -5,10 +5,12 @@ from pydantic import ValidationError
 
 from ai_share_of_voice.schemas.stopping import (
     BatchSummary,
+    IntervalMethod,
     StopConfig,
     StopDecision,
     StopReason,
     StopRule,
+    SummaryMetric,
 )
 
 
@@ -43,6 +45,52 @@ def test_half_width() -> None:
 def test_share_must_lie_inside_interval() -> None:
     with pytest.raises(ValidationError):
         make_summary(brand_share=0.5)
+
+
+def test_summary_defaults_describe_the_headline_mention_rate() -> None:
+    summary = make_summary()
+    assert summary.metric is SummaryMetric.MENTION_RATE
+    assert summary.interval_method is IntervalMethod.WILSON_BOOTSTRAP_HULL
+    assert summary.confidence == pytest.approx(0.95)
+    assert summary.n_questions is None
+
+
+def test_summary_accepts_the_metric_names_of_the_stats_module() -> None:
+    summary = make_summary(
+        metric="share_of_voice", interval_method="cluster_bootstrap", n_questions=12
+    )
+    assert summary.metric is SummaryMetric.SHARE_OF_VOICE
+    assert summary.n_questions == 12
+
+
+def test_net_tone_cannot_be_summarised_as_a_share() -> None:
+    with pytest.raises(ValidationError):
+        make_summary(metric="net_tone", interval_method="cluster_bootstrap")
+
+
+@pytest.mark.parametrize(
+    ("metric", "method"),
+    [
+        ("mention_rate", "cluster_bootstrap"),
+        ("share_of_voice", "wilson_bootstrap_hull"),
+    ],
+)
+def test_interval_method_must_match_the_metric(metric: str, method: str) -> None:
+    with pytest.raises(ValidationError, match="interval"):
+        make_summary(metric=metric, interval_method=method)
+
+
+@pytest.mark.parametrize("confidence", [0.0, 1.0, 1.5])
+def test_confidence_must_be_a_probability_strictly_between_zero_and_one(
+    confidence: float,
+) -> None:
+    with pytest.raises(ValidationError):
+        make_summary(confidence=confidence)
+
+
+def test_questions_cannot_outnumber_answers() -> None:
+    with pytest.raises(ValidationError, match="n_questions"):
+        make_summary(n_answers=10, n_questions=11)
 
 
 def test_continue_decision_must_not_stop() -> None:

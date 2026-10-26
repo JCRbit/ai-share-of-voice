@@ -16,10 +16,12 @@ from ai_share_of_voice.schemas.sources import (
 )
 from ai_share_of_voice.schemas.stopping import (
     BatchSummary,
+    IntervalMethod,
     StopConfig,
     StopDecision,
     StopReason,
     StopRule,
+    SummaryMetric,
 )
 from ai_share_of_voice.schemas.vision import Confidence, VisionFinding, VisionRequest
 
@@ -34,6 +36,7 @@ __all__ = [
     "Contract",
     "EventStatus",
     "GraphEvent",
+    "IntervalMethod",
     "ModelClient",
     "Question",
     "QuestionPanel",
@@ -46,6 +49,7 @@ __all__ = [
     "StopDecision",
     "StopReason",
     "StopRule",
+    "SummaryMetric",
     "Tone",
     "UrlCheck",
     "Usage",
