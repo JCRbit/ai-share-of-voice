@@ -30,6 +30,7 @@ PR review rotation: E reviews J, J reviews An, An reviews E, and E reviews Ab (m
 - Decision: food delivery in Madrid, with Glovo as the client brand.
 - Sector: food delivery · City: Madrid · Client: Glovo · Competitors: Just Eat, Uber Eats (see `data/competitors.csv`)
 - Name variants in `data/competitors.csv` are separated by `|`. "Uber" alone is not a variant: it would count ride-hailing answers as mentions.
+- A cited domain that matches a name or variant counts as a mention (for example `glovoapp.com` counts for Glovo). Matching ignores case and accents.
 - Questions never name a brand, so the measure is whether the model brings a brand up on its own.
 - Primary language: Spanish; English is also supported.
 - Questions exist in Spanish (`data/questions_es.csv`) and English (`data/questions.csv`), paired by id and intent, so visibility can be compared across languages. The question loader should pick the file from `Brief.language` (not implemented yet).
