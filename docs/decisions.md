@@ -5,11 +5,12 @@ Task C4. Record every decision the team closes before day 1. Update the status a
 | # | Decision | Status | Decided on | Owner |
 | --- | --- | --- | --- | --- |
 | 1 | Roles | Decided | 2026-10-23 | All |
-| 2 | Demo sector and city | Pending | | |
+| 2 | Demo sector and city | Decided | 2026-10-26 | All |
 | 3 | Model, provider and spending cap | Pending | | |
 | 4 | Fit as a market study | Pending | | |
 | 5 | Cloudista case | Pending | | |
 | 6 | Python version | Decided | 2026-10-23 | All |
+| 7 | Untracked brands in answers | Proposed | 2026-10-26 | E, J |
 
 ## 1. Roles
 
@@ -26,8 +27,14 @@ PR review rotation: E reviews J, J reviews An, An reviews E, and E reviews Ab (m
 
 - Proposal: food-delivery brands in one city.
 - Constraint: the model must know the competitors, otherwise almost all answers measure zero.
-- Decision: _pending_
-- Sector: _pending_ · City: _pending_ · Competitors (2 to 5): see `data/competitors.csv`
+- Decision: food delivery in Madrid, with Glovo as the client brand.
+- Sector: food delivery · City: Madrid · Client: Glovo · Competitors: Just Eat, Uber Eats (see `data/competitors.csv`)
+- Name variants in `data/competitors.csv` are separated by `|`. "Uber" alone is not a variant: it would count ride-hailing answers as mentions.
+- A cited domain that matches a name or variant counts as a mention (for example `glovoapp.com` counts for Glovo). Matching ignores case and accents.
+- Questions never name a brand, so the measure is whether the model brings a brand up on its own.
+- Primary language: Spanish; English is also supported.
+- Questions exist in Spanish (`data/questions_es.csv`) and English (`data/questions.csv`), paired by id and intent, so visibility can be compared across languages. The question loader should pick the file from `Brief.language` (not implemented yet).
+- Brands the model mentions outside this list: see decision 7.
 
 ## 3. Model, provider and spending cap
 
@@ -51,3 +58,10 @@ PR review rotation: E reviews J, J reviews An, An reviews E, and E reviews Ab (m
 
 - CrewAI 1.x requires Python below 3.14 and pydantic below 2.13.
 - Decision: Python 3.12 for everyone (3.13 also works); pydantic pinned below 2.13.
+
+## 7. Untracked brands in answers
+
+- Problem: answers can recommend brands that are not in `data/competitors.csv`. Ignoring them hides real competitors.
+- Proposal: the extractor records untracked brands per answer; the report ranks them by mention rate with an interval and suggests adding frequent ones as competitors in the next run.
+- Needs a change to `AnalyzedResponse` in `schemas/`, so it goes in its own PR and the team is told first.
+- Decision: _pending_ · Threshold to suggest a new competitor: _pending_

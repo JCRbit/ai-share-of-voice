@@ -1,1 +1,4 @@
 name,variants,is_client
+Glovo,GlovoApp|Glovo App,true
+Just Eat,JustEat|Just-Eat|Just Eat Takeaway,false
+Uber Eats,UberEats|Uber-Eats,false
