@@ -28,6 +28,10 @@ class StopConfig(Contract):
 
     ``marginal_return`` stops the loop when the confidence-interval half-width
     shrinks by less than ``marginal_gain_threshold`` for ``patience`` batches in a row.
+
+    ``max_spend_usd`` is the cap of the whole run. Sampling may only use part of it, so the
+    agents that run after it (research, Skeptic, writer) still have money: at most
+    ``sampling_budget_share`` of the cap, and always leaving ``agent_reserve_usd``.
     """
 
     target_half_width: float = Field(gt=0, le=0.5)
@@ -36,6 +40,15 @@ class StopConfig(Contract):
     max_spend_usd: float = Field(gt=0)
     marginal_gain_threshold: float = Field(default=0.005, ge=0)
     patience: int = Field(default=2, ge=1)
+    sampling_budget_share: float = Field(default=0.7, gt=0, le=1)
+    agent_reserve_usd: float = Field(default=0.2, ge=0)
+
+    @property
+    def sampling_budget_usd(self) -> float:
+        """Spend available to sampling: the stricter of the share and the minimum reserve."""
+        by_share = self.max_spend_usd * self.sampling_budget_share
+        by_reserve = self.max_spend_usd - self.agent_reserve_usd
+        return max(0.0, min(by_share, by_reserve))
 
     @model_validator(mode="after")
     def min_not_above_max(self) -> Self:
