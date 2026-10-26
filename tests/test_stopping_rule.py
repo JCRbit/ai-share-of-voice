@@ -164,6 +164,32 @@ def test_a_free_run_never_stops_for_budget() -> None:
     assert decision.reason is StopReason.CONTINUE
 
 
+def test_a_zero_budget_still_allows_free_batches() -> None:
+    # A 0.10 cap leaves nothing for sampling after the 0.20 reserve; free batches spend nothing.
+    config = StopConfig(target_half_width=0.05, max_batches=10, max_spend_usd=0.1)
+    assert config.sampling_budget_usd == 0.0
+    decision = should_stop(make_history([0.2, 0.18], [0.0, 0.0]), config)
+    assert decision.reason is StopReason.CONTINUE
+
+
+def test_a_zero_budget_stops_as_soon_as_a_batch_costs_something() -> None:
+    config = StopConfig(target_half_width=0.05, max_batches=10, max_spend_usd=0.1)
+    decision = should_stop(make_history([0.2], [0.01]), config)
+    assert decision.reason is StopReason.BUDGET_EXHAUSTED
+
+
+def test_the_budget_explanation_shows_the_estimate_behind_it() -> None:
+    # 3 batches cost 1.50 in total: the next one is estimated at their average, 0.50.
+    history = make_history([0.2, 0.18, 0.16], [0.5, 1.0, 1.5])
+    decision = should_stop(history, make_config(max_spend_usd=1.9))
+    assert decision.reason is StopReason.BUDGET_EXHAUSTED
+    assert "estimated at 0.50 USD" in decision.explanation
+    assert "average of the 3 batches" in decision.explanation
+    assert "2.00 USD" in decision.explanation
+    assert "1.90 USD" in decision.explanation
+    assert "not a guarantee" in decision.explanation
+
+
 # ---- max batches --------------------------------------------------------------------------
 
 
