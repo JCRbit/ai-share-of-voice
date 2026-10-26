@@ -1,1 +1,31 @@
 id,text,intent
+q01,What is the best food delivery app in Madrid?,recommendation
+q02,Which app should I use to order dinner at home in Madrid?,recommendation
+q03,I just moved to Madrid. Which food delivery service do you recommend?,recommendation
+q04,What is the most popular app for ordering food in Madrid?,recommendation
+q05,Which delivery app do people in Madrid use the most?,recommendation
+q06,Recommend a reliable way to get restaurant food delivered in Madrid.,recommendation
+q07,Which food delivery app in Madrid has the widest choice of restaurants?,comparison
+q08,What are the main differences between the food delivery apps available in Madrid?,comparison
+q09,Which delivery app in Madrid is fastest?,comparison
+q10,Compare the food delivery services that operate in Madrid.,comparison
+q11,Which food delivery app in Madrid has the best user experience?,comparison
+q12,What are the pros and cons of the food delivery apps in Madrid?,comparison
+q13,What is the cheapest food delivery app in Madrid?,price
+q14,Which delivery app in Madrid has the lowest delivery fees?,price
+q15,Is there a food delivery subscription in Madrid that is worth paying for?,price
+q16,Which food delivery app in Madrid offers the best discounts for new users?,price
+q17,Where can I get free delivery on food orders in Madrid?,price
+q18,Which delivery app gives the best value for money in Madrid?,price
+q19,Which food delivery apps work late at night in Madrid?,service_area
+q20,Can I order groceries as well as restaurant food through an app in Madrid?,service_area
+q21,Which delivery apps cover the outskirts of Madrid?,service_area
+q22,How can I get food delivered to my office in central Madrid?,service_area
+q23,Which apps deliver from local restaurants in Madrid and not only chains?,service_area
+q24,Which food delivery service in Madrid delivers on Sundays and holidays?,service_area
+q25,Which food delivery app in Madrid has the best customer service?,trust_reviews
+q26,Which delivery app in Madrid is most reliable for orders arriving on time?,trust_reviews
+q27,Which food delivery company in Madrid treats its riders fairly?,trust_reviews
+q28,Which delivery app in Madrid handles refunds for wrong orders well?,trust_reviews
+q29,Which food delivery app in Madrid has the best reviews?,trust_reviews
+q30,Which delivery app in Madrid is safest for people with food allergies?,trust_reviews
