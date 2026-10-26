@@ -1,10 +1,11 @@
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import pytest
 
 from ai_share_of_voice.schemas.stopping import BatchSummary
-from ai_share_of_voice.stats.charts import brand_comparison_chart, convergence_chart
+from ai_share_of_voice.stats.charts import _brand_figure, brand_comparison_chart, convergence_chart
 from ai_share_of_voice.stats.metrics import brand_metrics, load_answers
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_answers.csv"
@@ -53,6 +54,54 @@ def test_brand_chart_warns_when_there_are_too_few_questions(
     reliable = metrics.assign(few_questions=False)
     plain = brand_comparison_chart(reliable, "mention_rate", tmp_path / "plain.png")
     assert warned.read_bytes() != plain.read_bytes()
+
+
+def with_undefined(metrics: pd.DataFrame, brand: str, metric: str) -> pd.DataFrame:
+    """Copy of the table where one brand's metric cannot be computed (e.g. never mentioned)."""
+    table = metrics.copy()
+    row = (table["brand"] == brand) & (table["metric"] == metric)
+    table.loc[row, ["estimate", "ci_low", "ci_high"]] = float("nan")
+    return table
+
+
+def test_an_undefined_estimate_gets_no_bar_and_is_marked_unavailable(
+    metrics: pd.DataFrame,
+) -> None:
+    table = with_undefined(metrics, "Uber Eats", "recommendation_conversion")
+    figure = _brand_figure(table, "recommendation_conversion")
+    axes = figure.axes[0]
+    drawn = [patch.get_height() for patch in axes.patches]
+    assert len(drawn) == 2  # Just Eat and Glovo only
+    labels = [text.get_text() for text in axes.texts]
+    assert labels == ["n/a"]
+    notes = " ".join(text.get_text() for text in figure.texts)
+    assert "cannot be computed" in notes
+    plt.close(figure)
+
+
+def test_a_real_zero_is_still_drawn_as_a_bar(metrics: pd.DataFrame) -> None:
+    # In the fixture Uber Eats is mentioned but never recommended: a true 0%.
+    figure = _brand_figure(metrics, "recommendation_conversion")
+    axes = figure.axes[0]
+    assert len(axes.patches) == 3
+    assert not axes.texts
+    plt.close(figure)
+
+
+def test_undefined_and_zero_give_different_charts(metrics: pd.DataFrame, tmp_path: Path) -> None:
+    undefined = with_undefined(metrics, "Uber Eats", "recommendation_conversion")
+    first = brand_comparison_chart(undefined, "recommendation_conversion", tmp_path / "a.png")
+    second = brand_comparison_chart(metrics, "recommendation_conversion", tmp_path / "b.png")
+    assert first.read_bytes() != second.read_bytes()
+
+
+def test_a_chart_where_no_brand_has_a_value_still_renders(
+    metrics: pd.DataFrame, tmp_path: Path
+) -> None:
+    table = metrics.copy()
+    table.loc[:, ["estimate", "ci_low", "ci_high"]] = float("nan")
+    path = brand_comparison_chart(table, "recommendation_conversion", tmp_path / "empty.png")
+    assert path.read_bytes().startswith(PNG_SIGNATURE)
 
 
 def test_brand_chart_handles_negative_net_tone(metrics: pd.DataFrame, tmp_path: Path) -> None:
