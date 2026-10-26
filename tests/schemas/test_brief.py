@@ -71,3 +71,11 @@ def test_shared_variant_between_brands_is_rejected() -> None:
                 BrandSpec(name="Gamma"),
             )
         )
+
+
+def test_brand_names_that_differ_only_by_accents_are_rejected() -> None:
+    with pytest.raises(ValidationError, match="both"):
+        make_brief(
+            competitors=(BrandSpec(name="Café"), BrandSpec(name="Gamma")),
+            brand=BrandSpec(name="Cafe"),
+        )
