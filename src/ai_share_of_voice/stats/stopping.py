@@ -16,7 +16,9 @@ Rules, in order of precedence (the first one that holds is reported):
 3. Budget exhausted: the next batch, at the average cost of the batches so far, would take
    the cumulative spend above the sampling budget (``config.sampling_budget_usd``: the part
    of the run cap left after the reserve for the agents that run after sampling). A safety
-   rule, applied even before ``min_batches``.
+   rule, applied even before ``min_batches``. The cost is an estimate, and free batches never
+   exceed the budget, even a zero one. The rule runs after each batch, so it cannot prevent
+   the first one: refusing to start a paid run with a zero budget belongs in the graph.
 4. Max batches reached. Also a safety rule.
 
 Statistical reasons come first so the explanation says why the result is good enough,
@@ -67,10 +69,19 @@ def _small_gains(history: Sequence[BatchSummary], config: StopConfig) -> bool:
     )
 
 
+def _expected_next_batch_cost(history: Sequence[BatchSummary]) -> float:
+    """Estimate of the next batch's cost: the average cost of the batches so far."""
+    return history[-1].cumulative_spend_usd / len(history)
+
+
 def _next_batch_exceeds_budget(history: Sequence[BatchSummary], config: StopConfig) -> bool:
-    spent = history[-1].cumulative_spend_usd
-    expected_next = spent / len(history)
-    return spent + expected_next > config.sampling_budget_usd + _TOLERANCE
+    """True if the estimated spend after one more batch is above the sampling budget.
+
+    Free batches never exceed it, even when the sampling budget is zero: the rule guards
+    money, and ``max_batches`` still bounds a free run.
+    """
+    projected = history[-1].cumulative_spend_usd + _expected_next_batch_cost(history)
+    return projected > config.sampling_budget_usd + _TOLERANCE
 
 
 def should_stop(history: Sequence[BatchSummary], config: StopConfig) -> StopDecision:
@@ -98,12 +109,18 @@ def should_stop(history: Sequence[BatchSummary], config: StopConfig) -> StopDeci
             ),
         )
     if _next_batch_exceeds_budget(history, config):
+        expected = _expected_next_batch_cost(history)
+        projected = last.cumulative_spend_usd + expected
         return StopDecision(
             stop=True,
             reason=StopReason.BUDGET_EXHAUSTED,
             explanation=(
-                "Budget exhausted: another batch would exceed the sampling budget, which keeps "
-                f"a reserve for the agents that run after sampling; {status}."
+                f"Budget exhausted: the next batch is estimated at {expected:.2f} USD (average "
+                f"of the {len(history)} batches so far), which would bring the spend to "
+                f"{projected:.2f} USD, above the {config.sampling_budget_usd:.2f} USD sampling "
+                f"budget (run cap {config.max_spend_usd:.2f} USD; the rest is reserved for the "
+                "agents that run after sampling). The estimate is an average, not a guarantee: "
+                f"actual batch costs may vary. Current state: {status}."
             ),
         )
     if len(history) >= config.max_batches:
