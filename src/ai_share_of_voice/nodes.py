@@ -120,7 +120,11 @@ def make_fake_nodes(deps: NodeDeps, behavior: FakeBehavior | None = None) -> dic
         if behavior.fail_at == "sampling":
             reason = "Simulated failure in sampling"
             events.append(emit(state, "sampling", EventStatus.FAILED, tool=tool, reason=reason))
-            return {"partial_reason": reason, "events": events}
+            return {
+                "partial_reason": reason,
+                "failure_kind": "unexpected",
+                "events": events,
+            }
         batch = len(state.get("history", []))
         batch_answers = len(state["panel"].questions)
         spend = state.get("spend_usd", 0.0) + behavior.batch_cost_usd
@@ -191,7 +195,11 @@ def make_fake_nodes(deps: NodeDeps, behavior: FakeBehavior | None = None) -> dic
             events.append(
                 emit(state, "research", EventStatus.FAILED, agent=agent, tool=tool, reason=reason)
             )
-            return {"partial_reason": reason, "events": events}
+            return {
+                "partial_reason": reason,
+                "failure_kind": "unexpected",
+                "events": events,
+            }
         found = ["https://example.com/source-1", "https://example.com/source-2"]
         result = f"{len(found)} sources (simulated)"
         events.append(
