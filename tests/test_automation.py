@@ -233,6 +233,30 @@ def test_formula_like_values_become_plain_text(tmp_path: Path) -> None:
     assert read_rows(path)[0]["brand"].startswith("'=")
 
 
+def test_reordered_tracking_columns_are_accepted_and_normalized(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "tracking.csv"
+    original_row = tracking_row()
+    reordered_fields = list(reversed(FIELDS))
+
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=reordered_fields)
+        writer.writeheader()
+        writer.writerow(original_row)
+
+    assert upsert_row(path, tracking_row("another-run")) is True
+
+    with path.open(encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        assert reader.fieldnames == list(FIELDS)
+        rows = list(reader)
+
+    assert len(rows) == 2
+    assert rows[0] == original_row
+    assert rows[1]["run_id"] == "another-run"
+
+
 def test_a_file_with_other_columns_is_not_touched(tmp_path: Path) -> None:
     path = tmp_path / "tracking.csv"
     path.write_text("a,b\n1,2\n", encoding="utf-8")

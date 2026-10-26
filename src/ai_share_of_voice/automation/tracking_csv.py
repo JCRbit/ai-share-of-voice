@@ -69,10 +69,17 @@ def _read_rows(path: Path) -> list[dict[str, str]]:
         return []
     with path.open(encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
-        if tuple(reader.fieldnames or ()) != FIELDS:
+        fieldnames = reader.fieldnames or []
+
+        if (
+            len(fieldnames) != len(FIELDS)
+            or len(set(fieldnames)) != len(fieldnames)
+            or set(fieldnames) != set(FIELDS)
+        ):
             raise TrackingError(
                 f"{path} does not have the expected columns; move it aside before a new run"
             )
+
         return list(reader)
 
 
