@@ -11,6 +11,7 @@ Task C4. Record every decision the team closes before day 1. Update the status a
 | 5 | Cloudista case | Pending | | |
 | 6 | Python version | Decided | 2026-10-23 | All |
 | 7 | Untracked brands in answers | Proposed | 2026-10-26 | E, J |
+| 8 | Mention counting rules | Decided | 2026-10-26 | E, J |
 
 ## 1. Roles
 
@@ -29,8 +30,7 @@ PR review rotation: E reviews J, J reviews An, An reviews E, and E reviews Ab (m
 - Constraint: the model must know the competitors, otherwise almost all answers measure zero.
 - Decision: food delivery in Madrid, with Glovo as the client brand.
 - Sector: food delivery · City: Madrid · Client: Glovo · Competitors: Just Eat, Uber Eats (see `data/competitors.csv`)
-- Name variants in `data/competitors.csv` are separated by `|`. "Uber" alone is not a variant: it would count ride-hailing answers as mentions.
-- A cited domain that matches a name or variant counts as a mention (for example `glovoapp.com` counts for Glovo). Matching ignores case and accents.
+- Name variants in `data/competitors.csv` are separated by `|`. How mentions are counted: see decision 8.
 - Questions never name a brand, so the measure is whether the model brings a brand up on its own.
 - Primary language: Spanish; English is also supported.
 - Questions exist in Spanish (`data/questions_es.csv`) and English (`data/questions.csv`), paired by id and intent, so visibility can be compared across languages. The question loader should pick the file from `Brief.language` (not implemented yet).
@@ -65,3 +65,11 @@ PR review rotation: E reviews J, J reviews An, An reviews E, and E reviews Ab (m
 - Proposal: the extractor records untracked brands per answer; the report ranks them by mention rate with an interval and suggests adding frequent ones as competitors in the next run.
 - Needs a change to `AnalyzedResponse` in `schemas/`, so it goes in its own PR and the team is told first.
 - Decision: _pending_ · Threshold to suggest a new competitor: _pending_
+
+## 8. Mention counting rules
+
+- Context: the mention extractor (#46) decides mentions with deterministic code; these rules make its behaviour explicit so the metrics can be read correctly.
+- A brand is mentioned when its name or one of its variants appears as a whole word. Case and accents are ignored (`normalize_brand_name`), so "Glóvo" counts for Glovo. This also turns "ñ" into "n".
+- A cited domain that matches a name or variant counts as a mention (for example `glovoapp.com` counts for Glovo): a cited brand is visible to the reader. Cited URLs are also listed separately as sources.
+- Variants must not be ambiguous: "Uber" alone is not a variant of Uber Eats, because it would count ride-hailing answers as mentions.
+- Position is the order of first appearance among the tracked brands only, and it is independent of recommendation; read it together with `recommended`.
