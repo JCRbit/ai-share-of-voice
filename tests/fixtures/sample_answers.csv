@@ -1,0 +1,19 @@
+response_id,question_id,batch_index,brand,mentioned,recommended,position,tone
+r1,q1,0,Just Eat,True,False,2,neutral
+r1,q1,0,Glovo,True,True,1,positive
+r1,q1,0,Uber Eats,False,False,,
+r2,q1,0,Just Eat,False,False,,
+r2,q1,0,Glovo,True,True,1,positive
+r2,q1,0,Uber Eats,True,False,2,neutral
+r3,q2,0,Just Eat,True,True,1,positive
+r3,q2,0,Glovo,True,False,2,neutral
+r3,q2,0,Uber Eats,False,False,,
+r4,q2,0,Just Eat,True,True,1,positive
+r4,q2,0,Glovo,False,False,,
+r4,q2,0,Uber Eats,False,False,,
+r5,q3,0,Just Eat,False,False,,
+r5,q3,0,Glovo,True,False,2,neutral
+r5,q3,0,Uber Eats,True,False,1,neutral
+r6,q3,0,Just Eat,False,False,,
+r6,q3,0,Glovo,True,True,1,positive
+r6,q3,0,Uber Eats,True,False,2,negative

@@ -1,10 +1,17 @@
 """Brief contract: the request the user fills in the form (owners: J with Ab)."""
 
+import unicodedata
 from typing import Self
 
 from pydantic import Field, field_validator, model_validator
 
 from ai_share_of_voice.schemas.base import Contract
+
+
+def normalize_brand_name(name: str) -> str:
+    """Normalize a brand name for case- and accent-insensitive comparisons."""
+    decomposed = unicodedata.normalize("NFKD", name)
+    return "".join(char for char in decomposed if not unicodedata.combining(char)).casefold()
 
 
 class BrandSpec(Contract):
@@ -46,7 +53,9 @@ class Brief(Contract):
         seen: dict[str, tuple[int, str]] = {}
         for index, brand in enumerate((self.brand, *self.competitors)):
             for name in brand.all_names():
-                owner_index, owner_name = seen.setdefault(name.casefold(), (index, brand.name))
+                owner_index, owner_name = seen.setdefault(
+                    normalize_brand_name(name), (index, brand.name)
+                )
                 if owner_index != index:
                     raise ValueError(f"'{name}' is used by both '{owner_name}' and '{brand.name}'")
         return self
