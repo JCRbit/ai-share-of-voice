@@ -53,24 +53,38 @@ def _save(figure: plt.Figure, path: Path) -> Path:
 def brand_comparison_chart(metrics: pd.DataFrame, metric: str, path: Path) -> Path:
     """Bar chart of one metric per brand, with its interval as an error bar.
 
-    ``metrics`` is the table returned by ``brand_metrics``.
+    ``metrics`` is the table returned by ``brand_metrics``. A brand whose metric cannot be
+    computed (``NaN``, e.g. recommendation conversion of a brand never mentioned) gets no
+    bar and is marked "n/a", so it is not mistaken for a real 0.
     """
+    path = _check_png(path)
+    return _save(_brand_figure(metrics, metric), path)
+
+
+def _brand_figure(metrics: pd.DataFrame, metric: str) -> plt.Figure:
+    """Build the brand comparison figure; separate from saving so tests can inspect it."""
     if metric not in METRICS:
         raise ValueError(f"unknown metric {metric!r}; expected one of {', '.join(METRICS)}")
     if missing := set(REQUIRED_COLUMNS) - set(metrics.columns):
         raise ValueError(f"missing columns: {sorted(missing)}")
-    path = _check_png(path)
-    rows = metrics[metrics["metric"] == metric]
+    rows = metrics[metrics["metric"] == metric].reset_index(drop=True)
     if rows.empty:
         raise ValueError(f"the table has no rows for {metric!r}")
 
-    estimate = rows["estimate"].fillna(0.0)
+    defined = rows[rows["estimate"].notna()]
+    undefined = rows[rows["estimate"].isna()]
+    estimate = defined["estimate"]
     errors = [
-        (estimate - rows["ci_low"].fillna(estimate)).clip(lower=0),
-        (rows["ci_high"].fillna(estimate) - estimate).clip(lower=0),
+        (estimate - defined["ci_low"].fillna(estimate)).clip(lower=0),
+        (defined["ci_high"].fillna(estimate) - estimate).clip(lower=0),
     ]
     figure, axes = plt.subplots(figsize=_FIGSIZE)
-    axes.bar(rows["brand"], estimate, yerr=errors, capsize=6, color="#4C72B0")
+    if not defined.empty:
+        axes.bar(defined.index, estimate, yerr=errors, capsize=6, color="#4C72B0")
+    for position in undefined.index:
+        axes.text(position, 0.02, "n/a", ha="center", va="bottom", color="#555555")
+    axes.set_xticks(rows.index, rows["brand"])
+    axes.set_xlim(-0.6, len(rows) - 0.4)
     if metric == "net_tone":
         axes.set_ylim(-1.0, 1.0)
         axes.axhline(0.0, color="black", linewidth=0.8)
@@ -83,6 +97,13 @@ def brand_comparison_chart(metrics: pd.DataFrame, metric: str, path: Path) -> Pa
     axes.grid(axis="y", alpha=0.3)
 
     notes = [(f"{name}: {definition.rstrip(')')}. Error bars: confidence interval.", "#555555")]
+    if not undefined.empty:
+        notes.append(
+            (
+                "n/a: the metric cannot be computed for that brand (e.g. it was never mentioned).",
+                "#555555",
+            )
+        )
     if "few_questions" in rows and rows["few_questions"].any():
         n_questions = int(rows["n_questions"].iloc[0]) if "n_questions" in rows else None
         count = f"Only {n_questions} questions" if n_questions else "Few questions"
@@ -92,7 +113,7 @@ def brand_comparison_chart(metrics: pd.DataFrame, metric: str, path: Path) -> Pa
     for line, (text, color) in enumerate(reversed(notes)):
         figure.text(0.5, 0.01 + 0.04 * line, text, ha="center", fontsize=8, color=color)
     figure.tight_layout(rect=(0, 0.04 * len(notes) + 0.01, 1, 1))
-    return _save(figure, path)
+    return figure
 
 
 def convergence_chart(
