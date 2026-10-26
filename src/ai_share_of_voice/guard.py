@@ -25,9 +25,7 @@ logger = logging.getLogger(__name__)
 
 # The human pause and the closing nodes must never be guarded: a pause is not a failure,
 # and a closing node that fails has nowhere left to go.
-DEFAULT_UNGUARDED = frozenset(
-    {"approval_gate", "close_rejected", "close_partial"}
-)
+DEFAULT_UNGUARDED = frozenset({"approval_gate", "close_rejected", "close_partial"})
 
 
 def guard_node(

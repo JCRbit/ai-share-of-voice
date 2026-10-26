@@ -214,11 +214,5 @@ def test_a_failure_in_approval_request_closes_without_pausing(
     assert state["failure_kind"] == "tool_failure"
     assert "unreachable" in state["partial_reason"]
     assert next_nodes(graph, config) == ()
-    assert not [
-        event
-        for event in state["events"]
-        if event.status is EventStatus.WAITING_APPROVAL
-    ]
-    assert not [
-        event for event in state["events"] if event.node == "approval_gate"
-    ]
+    assert not [event for event in state["events"] if event.status is EventStatus.WAITING_APPROVAL]
+    assert not [event for event in state["events"] if event.node == "approval_gate"]
