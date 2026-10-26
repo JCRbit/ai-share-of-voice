@@ -7,8 +7,9 @@ from ai_share_of_voice.schemas.events import EventStatus, GraphEvent
 
 
 def simulate_run(run_id: str = None) -> list[GraphEvent]:
-    """Yields fake graph events to simulate a full AI Share of Voice run."""
-    run_id = run_id or str(uuid4())
+    if not run_id:
+        run_id = str(uuid4())
+
     events = []
     current_spend = 0.0
 
@@ -16,7 +17,7 @@ def simulate_run(run_id: str = None) -> list[GraphEvent]:
     events.append(
         GraphEvent(
             run_id=run_id,
-            node="questions_generator",
+            node="questions",
             agent="Question generator",
             status=EventStatus.STARTED,
             cumulative_spend_usd=current_spend,
@@ -27,7 +28,7 @@ def simulate_run(run_id: str = None) -> list[GraphEvent]:
     events.append(
         GraphEvent(
             run_id=run_id,
-            node="questions_generator",
+            node="questions",
             agent="Question generator",
             status=EventStatus.SUCCEEDED,
             result="Generated 30 sector questions.",
@@ -35,13 +36,11 @@ def simulate_run(run_id: str = None) -> list[GraphEvent]:
         )
     )
 
-    # 2. Sampling & Extractor Step (Generating valid AnalyzedResponse data)
-    # Note: Respects consistent() validator (if recommended=True, mentioned must be True)
+    # 2. Sampling & Extractor Step (Research)
     mock_brand_a = BrandMention(
         brand="Brand A", mentioned=True, recommended=True, position=1, tone=Tone.POSITIVE
     )
 
-    # Note: Respects consistent() validator (if not mentioned, position/tone must be None)
     mock_brand_b = BrandMention(
         brand="Brand B", mentioned=False, recommended=False, position=None, tone=None
     )
@@ -50,14 +49,14 @@ def simulate_run(run_id: str = None) -> list[GraphEvent]:
         response_id="resp-001",
         question_id="q-001",
         batch_index=0,
-        mentions=(mock_brand_a, mock_brand_b),
+        mentions=[mock_brand_a, mock_brand_b],
         sources=["https://example-source.com/article1"],
     )
 
     events.append(
         GraphEvent(
             run_id=run_id,
-            node="mention_extractor",
+            node="research",
             agent="Mention extractor",
             tool="Pydantic tool",
             status=EventStatus.SUCCEEDED,
@@ -65,40 +64,29 @@ def simulate_run(run_id: str = None) -> list[GraphEvent]:
             cumulative_spend_usd=current_spend + 0.15,
         )
     )
+    current_spend += 0.15
 
-    # 3. Simulate a failed tool call to test error handling
-    # Note: Respects failures_need_a_reason() validator
+    # 3. Skeptic Review Loop
     events.append(
         GraphEvent(
             run_id=run_id,
-            node="source_researcher",
-            agent="Source researcher",
-            tool="MCP server",
-            status=EventStatus.FAILED,
-            reason="MCP server timeout while fetching URL.",
-            cumulative_spend_usd=current_spend + 0.20,
-        )
-    )
-
-    # 4. Skeptic Review Loop & Final Approval Pause
-    events.append(
-        GraphEvent(
-            run_id=run_id,
-            node="skeptic_reviewer",
+            node="skeptic",
             agent="Skeptic",
             status=EventStatus.SUCCEEDED,
             result="Draft passes all causality checks. No objections.",
-            cumulative_spend_usd=current_spend + 0.35,
+            cumulative_spend_usd=current_spend + 0.15,
         )
     )
+    current_spend += 0.15
 
+    # 4. Final Approval Pause
     events.append(
         GraphEvent(
             run_id=run_id,
-            node="human_pause",
+            node="approval_gate",
             status=EventStatus.WAITING_APPROVAL,
             result="Awaiting human confirmation before publishing report.",
-            cumulative_spend_usd=current_spend + 0.35,
+            cumulative_spend_usd=current_spend,
         )
     )
 
