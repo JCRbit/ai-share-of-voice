@@ -14,7 +14,9 @@ Rules, in order of precedence (the first one that holds is reported):
    of the last ``patience`` batches, after at least ``min_batches`` batches. More answers
    are no longer buying precision.
 3. Budget exhausted: the next batch, at the average cost of the batches so far, would take
-   the cumulative spend above the cap. A safety rule, applied even before ``min_batches``.
+   the cumulative spend above the sampling budget (``config.sampling_budget_usd``: the part
+   of the run cap left after the reserve for the agents that run after sampling). A safety
+   rule, applied even before ``min_batches``.
 4. Max batches reached. Also a safety rule.
 
 Statistical reasons come first so the explanation says why the result is good enough,
@@ -45,7 +47,8 @@ def _status(history: Sequence[BatchSummary], config: StopConfig) -> str:
     return (
         f"half-width {last.half_width:.3f} (target {config.target_half_width:.3f}) "
         f"after {len(history)} batches and {last.n_answers} answers, "
-        f"spent {last.cumulative_spend_usd:.2f} of {config.max_spend_usd:.2f} USD"
+        f"spent {last.cumulative_spend_usd:.2f} of the {config.sampling_budget_usd:.2f} USD "
+        f"sampling budget (run cap {config.max_spend_usd:.2f} USD)"
     )
 
 
@@ -67,7 +70,7 @@ def _small_gains(history: Sequence[BatchSummary], config: StopConfig) -> bool:
 def _next_batch_exceeds_budget(history: Sequence[BatchSummary], config: StopConfig) -> bool:
     spent = history[-1].cumulative_spend_usd
     expected_next = spent / len(history)
-    return spent + expected_next > config.max_spend_usd + _TOLERANCE
+    return spent + expected_next > config.sampling_budget_usd + _TOLERANCE
 
 
 def should_stop(history: Sequence[BatchSummary], config: StopConfig) -> StopDecision:
@@ -98,7 +101,10 @@ def should_stop(history: Sequence[BatchSummary], config: StopConfig) -> StopDeci
         return StopDecision(
             stop=True,
             reason=StopReason.BUDGET_EXHAUSTED,
-            explanation=f"Budget exhausted: another batch would exceed the cap; {status}.",
+            explanation=(
+                "Budget exhausted: another batch would exceed the sampling budget, which keeps "
+                f"a reserve for the agents that run after sampling; {status}."
+            ),
         )
     if len(history) >= config.max_batches:
         return StopDecision(

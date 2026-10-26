@@ -44,6 +44,10 @@ def make_config(**overrides: object) -> StopConfig:
         "max_spend_usd": 5.0,
         "marginal_gain_threshold": 0.005,
         "patience": 2,
+        # The whole cap goes to sampling here, so the budget tests check the prediction
+        # alone; the reserve for the agents has its own tests below.
+        "sampling_budget_share": 1.0,
+        "agent_reserve_usd": 0.0,
     }
     data.update(overrides)
     return StopConfig(**data)
@@ -140,6 +144,21 @@ def test_budget_overrides_the_minimum_number_of_batches() -> None:
     assert decision.reason is StopReason.BUDGET_EXHAUSTED
 
 
+def test_sampling_stops_before_eating_the_agents_reserve() -> None:
+    # Default split of a 2.00 cap: sampling may use 1.40. Next batch: 1.00 + 0.50 > 1.40.
+    config = StopConfig(target_half_width=0.05, max_batches=10, max_spend_usd=2.0)
+    decision = should_stop(make_history([0.2, 0.18], [0.5, 1.0]), config)
+    assert decision.reason is StopReason.BUDGET_EXHAUSTED
+    assert "1.40" in decision.explanation
+    assert "2.00" in decision.explanation
+
+
+def test_sampling_continues_while_the_reserve_is_safe() -> None:
+    config = StopConfig(target_half_width=0.05, max_batches=10, max_spend_usd=2.0)
+    decision = should_stop(make_history([0.2, 0.18], [0.3, 0.6]), config)
+    assert decision.reason is StopReason.CONTINUE
+
+
 def test_a_free_run_never_stops_for_budget() -> None:
     decision = should_stop(make_history([0.2, 0.18], [0.0, 0.0]), make_config())
     assert decision.reason is StopReason.CONTINUE
@@ -208,10 +227,11 @@ def test_the_simulated_graph_stops_with_the_real_rule(tmp_path: Path) -> None:
         competitors=(BrandSpec(name="Beta"), BrandSpec(name="Gamma")),
         sector="food delivery",
         city="Madrid",
-        spend_cap_usd=0.12,
+        spend_cap_usd=0.5,
         max_batches=10,
     )
-    # Fake batches cost 0.05: after two batches a third would reach 0.15 > 0.12.
+    # Sampling may use min(70% of 0.50, 0.50 - 0.20) = 0.30. Fake batches cost 0.05,
+    # so after six batches (0.30) a seventh would reach 0.35 > 0.30.
     deps = NodeDeps(event_log=EventLog(tmp_path), should_stop=should_stop)
     graph = build_graph(make_fake_nodes(deps), checkpointer=memory_checkpointer())
     config = run_config("run-d2", brief)
@@ -220,4 +240,4 @@ def test_the_simulated_graph_stops_with_the_real_rule(tmp_path: Path) -> None:
     decision = state["stop_decision"]
     assert decision.reason is StopReason.BUDGET_EXHAUSTED
     assert decision.explanation.startswith("Budget exhausted")
-    assert len(state["history"]) == 2
+    assert len(state["history"]) == 6
