@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from ai_share_of_voice.schemas.brief import BrandSpec, Brief
+from ai_share_of_voice.schemas.brief import BrandSpec, Brief, normalize_brand_name
 from ai_share_of_voice.schemas.questions import Question, QuestionPanel
 
 DATA = Path(__file__).resolve().parents[1] / "data"
@@ -50,7 +50,7 @@ def test_is_client_is_an_explicit_boolean() -> None:
 
 
 def test_ambiguous_uber_is_not_a_variant() -> None:
-    names = {name.casefold() for brand, _ in load_brands() for name in brand.all_names()}
+    names = {normalize_brand_name(name) for brand, _ in load_brands() for name in brand.all_names()}
     assert "uber" not in names
 
 
@@ -69,7 +69,8 @@ def test_languages_are_paired_by_id_and_intent() -> None:
 
 @pytest.mark.parametrize("file_name", QUESTION_FILES)
 def test_questions_do_not_name_any_brand(file_name: str) -> None:
-    names = [name.casefold() for brand, _ in load_brands() for name in brand.all_names()]
+    """Matches the extractor: case and accents are ignored when looking for brand names."""
+    names = [normalize_brand_name(name) for brand, _ in load_brands() for name in brand.all_names()]
     for question in load_panel(file_name).questions:
-        text = question.text.casefold()
+        text = normalize_brand_name(question.text)
         assert not [brand for brand in names if brand in text], question.id
