@@ -222,4 +222,3 @@ def test_a_failure_in_approval_request_closes_without_pausing(
     assert not [
         event for event in state["events"] if event.node == "approval_gate"
     ]
-
