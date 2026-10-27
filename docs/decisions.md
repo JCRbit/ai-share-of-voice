@@ -7,8 +7,8 @@ Task C4. Record every decision the team closes before day 1. Update the status a
 | 1 | Roles | Decided | 2026-10-23 | All |
 | 2 | Demo sector and city | Decided | 2026-10-26 | All |
 | 3 | Model, provider and spending cap | Pending | | |
-| 4 | Fit as a market study | Pending | | |
-| 5 | Cloudista case | Pending | | |
+| 4 | Fit as a market study | Not applicable | 2026-10-26 | All |
+| 5 | Cloudista case | Decided | 2026-10-26 | All |
 | 6 | Python version | Decided | 2026-10-23 | All |
 | 7 | Untracked brands in answers | Proposed | 2026-10-26 | E, J |
 | 8 | Mention counting rules | Decided | 2026-10-26 | E, J |
@@ -46,13 +46,13 @@ PR review rotation: E reviews J, J reviews An, An reviews E, and E reviews Ab (m
 ## 4. Fit as a market study
 
 - Question for the training team: does AI-visibility monitoring fit the "market research" brief?
-- Asked on: _pending_ · Answer: _pending_
-- If it does not fit: _pending_
+- Asked on: N/A
+- If it does not fit: N/A
 
 ## 5. Cloudista case
 
 - Agreed position: its sector (food delivery) is used for the demo, and its ethical case (not delegating allergen checks to vision) is presented as an example of a decision that is not delegated. It is not the product.
-- Confirmed with whoever proposed it: _pending_
+- Confirmed with whoever proposed it: Done
 
 ## 6. Python version
 

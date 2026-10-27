@@ -28,6 +28,10 @@ class StopConfig(Contract):
 
     ``marginal_return`` stops the loop when the confidence-interval half-width
     shrinks by less than ``marginal_gain_threshold`` for ``patience`` batches in a row.
+
+    ``max_spend_usd`` is the cap of the whole run. Sampling may only use part of it, so the
+    agents that run after it (research, Skeptic, writer) still have money: at most
+    ``sampling_budget_share`` of the cap, and always leaving ``agent_reserve_usd``.
     """
 
     target_half_width: float = Field(gt=0, le=0.5)
@@ -36,6 +40,15 @@ class StopConfig(Contract):
     max_spend_usd: float = Field(gt=0)
     marginal_gain_threshold: float = Field(default=0.005, ge=0)
     patience: int = Field(default=2, ge=1)
+    sampling_budget_share: float = Field(default=0.7, gt=0, le=1)
+    agent_reserve_usd: float = Field(default=0.2, ge=0)
+
+    @property
+    def sampling_budget_usd(self) -> float:
+        """Spend available to sampling: the stricter of the share and the minimum reserve."""
+        by_share = self.max_spend_usd * self.sampling_budget_share
+        by_reserve = self.max_spend_usd - self.agent_reserve_usd
+        return max(0.0, min(by_share, by_reserve))
 
     @model_validator(mode="after")
     def min_not_above_max(self) -> Self:
@@ -44,8 +57,38 @@ class StopConfig(Contract):
         return self
 
 
+class SummaryMetric(StrEnum):
+    """Metrics of ``stats/metrics.py`` that are shares in [0, 1].
+
+    ``net_tone`` is left out: it ranges from -1 to 1, so it is not a share.
+    """
+
+    MENTION_RATE = "mention_rate"
+    RECOMMENDATION_RATE = "recommendation_rate"
+    TOP1_RATE = "top1_rate"
+    SHARE_OF_VOICE = "share_of_voice"
+    RECOMMENDATION_CONVERSION = "recommendation_conversion"
+
+
+class IntervalMethod(StrEnum):
+    """How ``ci_low``/``ci_high`` were computed; mirrors ``ci_method`` in ``stats/metrics.py``."""
+
+    WILSON_BOOTSTRAP_HULL = "wilson_bootstrap_hull"
+    CLUSTER_BOOTSTRAP = "cluster_bootstrap"
+
+
+# Share of voice is not a count of successes among answers, so Wilson does not apply to it.
+_BOOTSTRAP_ONLY_METRICS = frozenset({SummaryMetric.SHARE_OF_VOICE})
+
+
 class BatchSummary(Contract):
-    """Cumulative metrics for the focus brand after a batch (all batches so far)."""
+    """Cumulative metrics for the focus brand after a batch (all batches so far).
+
+    ``brand_share`` is the estimate of ``metric``. The defaults describe the headline
+    figure (mention rate with the Wilson and bootstrap hull at 95%), so existing callers
+    keep working. ``n_questions`` is the number of question clusters behind the interval;
+    ``None`` means the producer did not report it.
+    """
 
     batch_index: int = Field(ge=0)
     n_answers: int = Field(ge=1)
@@ -53,6 +96,10 @@ class BatchSummary(Contract):
     ci_low: float = Field(ge=0, le=1)
     ci_high: float = Field(ge=0, le=1)
     cumulative_spend_usd: float = Field(ge=0)
+    metric: SummaryMetric = SummaryMetric.MENTION_RATE
+    interval_method: IntervalMethod = IntervalMethod.WILSON_BOOTSTRAP_HULL
+    confidence: float = Field(default=0.95, gt=0, lt=1)
+    n_questions: int | None = Field(default=None, ge=1)
 
     @property
     def half_width(self) -> float:
@@ -64,6 +111,23 @@ class BatchSummary(Contract):
         tolerance = 1e-9
         if not (self.ci_low - tolerance <= self.brand_share <= self.ci_high + tolerance):
             raise ValueError("brand_share must lie inside [ci_low, ci_high]")
+        return self
+
+    @model_validator(mode="after")
+    def interval_method_matches_metric(self) -> Self:
+        expected = (
+            IntervalMethod.CLUSTER_BOOTSTRAP
+            if self.metric in _BOOTSTRAP_ONLY_METRICS
+            else IntervalMethod.WILSON_BOOTSTRAP_HULL
+        )
+        if self.interval_method is not expected:
+            raise ValueError(f"{self.metric.value} is reported with the {expected.value} interval")
+        return self
+
+    @model_validator(mode="after")
+    def questions_do_not_outnumber_answers(self) -> Self:
+        if self.n_questions is not None and self.n_questions > self.n_answers:
+            raise ValueError("n_questions cannot be greater than n_answers")
         return self
 
 

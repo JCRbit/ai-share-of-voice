@@ -15,7 +15,13 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from ai_share_of_voice.schemas.brief import BrandSpec, Brief
 from ai_share_of_voice.schemas.events import EventStatus, GraphEvent
 from ai_share_of_voice.schemas.questions import Question, QuestionPanel
-from ai_share_of_voice.schemas.stopping import BatchSummary, StopDecision, StopReason
+from ai_share_of_voice.schemas.stopping import (
+    BatchSummary,
+    IntervalMethod,
+    StopDecision,
+    StopReason,
+    SummaryMetric,
+)
 
 _STATE_TYPES: tuple[type, ...] = (
     BatchSummary,
@@ -23,10 +29,12 @@ _STATE_TYPES: tuple[type, ...] = (
     Brief,
     EventStatus,
     GraphEvent,
+    IntervalMethod,
     Question,
     QuestionPanel,
     StopDecision,
     StopReason,
+    SummaryMetric,
 )
 
 

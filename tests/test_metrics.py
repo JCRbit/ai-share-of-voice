@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ai_share_of_voice.schemas import AnalyzedResponse, BrandMention, Tone
+from ai_share_of_voice.schemas import AnalyzedResponse, BatchSummary, BrandMention, Tone
 from ai_share_of_voice.stats.metrics import (
     METRICS,
     MIN_RELIABLE_QUESTIONS,
@@ -133,6 +133,24 @@ def test_every_brand_has_all_six_metrics(metrics: pd.DataFrame) -> None:
 def test_share_of_voice_adds_up_to_one(metrics: pd.DataFrame) -> None:
     shares = metrics.xs("share_of_voice", level="metric")["estimate"]
     assert shares.sum() == pytest.approx(1.0)
+
+
+def test_every_share_metric_fits_a_batch_summary(metrics: pd.DataFrame) -> None:
+    """The contract and the stats module agree on metric names and interval methods."""
+    n_answers = load_answers(FIXTURE)["response_id"].nunique()
+    for (_, metric), row in metrics.drop(index="net_tone", level="metric").iterrows():
+        summary = BatchSummary(
+            batch_index=0,
+            n_answers=n_answers,
+            brand_share=row["estimate"],
+            ci_low=row["ci_low"],
+            ci_high=row["ci_high"],
+            cumulative_spend_usd=0.0,
+            metric=metric,
+            interval_method=row["ci_method"],
+            n_questions=row["n_questions"],
+        )
+        assert summary.metric == metric
 
 
 def test_wilson_is_only_reported_for_binomial_metrics(metrics: pd.DataFrame) -> None:
