@@ -23,7 +23,7 @@ from ai_share_of_voice.state import GraphState
 
 logger = logging.getLogger(__name__)
 
-# The human pause and the closing nodes must never be guarded: a pause is not a failure,
+# The pause and the two terminal close nodes must never be guarded: a pause is not a failure,
 # and a closing node that fails has nowhere left to go.
 DEFAULT_UNGUARDED = frozenset({"approval_gate", "close_rejected", "close_partial"})
 

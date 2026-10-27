@@ -13,6 +13,7 @@ from typing import Any
 
 from langgraph.types import interrupt
 
+from ai_share_of_voice.errors import FailureKind
 from ai_share_of_voice.event_log import EventLog
 from ai_share_of_voice.schemas.events import EventStatus, GraphEvent
 from ai_share_of_voice.schemas.questions import Question, QuestionPanel
@@ -122,7 +123,7 @@ def make_fake_nodes(deps: NodeDeps, behavior: FakeBehavior | None = None) -> dic
             events.append(emit(state, "sampling", EventStatus.FAILED, tool=tool, reason=reason))
             return {
                 "partial_reason": reason,
-                "failure_kind": "unexpected",
+                "failure_kind": FailureKind.UNEXPECTED.value,
                 "events": events,
             }
         batch = len(state.get("history", []))
@@ -197,7 +198,7 @@ def make_fake_nodes(deps: NodeDeps, behavior: FakeBehavior | None = None) -> dic
             )
             return {
                 "partial_reason": reason,
-                "failure_kind": "unexpected",
+                "failure_kind": FailureKind.UNEXPECTED.value,
                 "events": events,
             }
         found = ["https://example.com/source-1", "https://example.com/source-2"]
