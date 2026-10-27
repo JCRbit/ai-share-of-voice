@@ -44,10 +44,15 @@ def simulate_run(
         graph = build_graph(make_fake_nodes(deps), checkpointer=memory_checkpointer())
         config = run_config(active_run_id, active_brief)
 
+        # FIX: Record the number of existing events before invoking the graph
+        initial_event_count = len(log.read(active_run_id))
+
         graph.invoke(initial_state(active_brief, active_run_id), config)
-        events = log.read(active_run_id)
-        seen = len(events)
-        yield from events
+
+        # FIX: Yield only the new events appended during this invocation
+        current_events = log.read(active_run_id)
+        yield from current_events[initial_event_count:]
+        seen = len(current_events)
 
         state = graph.get_state(config)
         if auto_approve and state.next == ("approval_gate",):
