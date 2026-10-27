@@ -12,13 +12,34 @@ Project III, Module V (AI Engineering) — AgentSquad: multi-agent system with C
 C1 shared contracts and the A1 LangGraph skeleton are implemented. The A1 graph uses simulated nodes, bounded loops, SQLite checkpointing, human approval and JSONL audit events. See [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) for phases, owners and tasks.
 
 ## Quick start
+
+**Requirements:** Git, Python 3.12 (3.13 also works; CrewAI does not support 3.14 yet) and `make`.
+
+**Linux / macOS**
+
 ```bash
-py -3.12 -m venv .venv && source .venv/bin/activate
+git clone https://github.com/JCRbit/ai-share-of-voice.git
+cd ai-share-of-voice
+python3.12 -m venv .venv && source .venv/bin/activate
 make install
 cp .env.example .env        # add your own key and spending cap
 make check
 ```
-Python 3.12 or 3.13 is required: CrewAI does not support 3.14 yet.
+
+**Windows (PowerShell)**
+
+```powershell
+winget install ezwinports.make   # skip if you already have make; then restart your terminal/editor
+git clone https://github.com/JCRbit/ai-share-of-voice.git
+cd ai-share-of-voice
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1       # if blocked: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+make install
+Copy-Item .env.example .env      # add your own key and spending cap
+make check
+```
+
+`make check` runs lint and tests; if it ends with all tests passing, your setup is ready.
 
 ## Sections (owners)
 - Installation — Ab
