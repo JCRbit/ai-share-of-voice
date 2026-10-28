@@ -45,16 +45,22 @@ def route_unless_partial(next_node: str) -> Callable[[GraphState], str]:
 
 
 def route_after_metrics(state: GraphState) -> str:
-    """Take another batch or move on, following the stopping decision."""
+    """Close on failure; otherwise follow the stopping decision."""
+    if state.get("partial_reason"):
+        return "close_partial"
     return "research" if state["stop_decision"].stop else "sampling"
 
 
 def make_route_after_skeptic(max_review_rounds: int) -> Callable[[GraphState], str]:
-    """Send the draft back while there are objections and rounds left."""
+    """Close on failure; otherwise handle objections and review rounds."""
 
     def route(state: GraphState) -> str:
+        if state.get("partial_reason"):
+            return "close_partial"
+
         if state.get("objections") and state.get("review_round", 0) < max_review_rounds:
             return "write_draft"
+
         return "approval_request"
 
     return route
@@ -81,34 +87,68 @@ def build_graph(
         builder.add_node(name, nodes[name])
 
     builder.add_edge(START, "questions")
-    builder.add_edge("questions", "sampling")
+    builder.add_conditional_edges(
+        "questions",
+        route_unless_partial("sampling"),
+        {"sampling": "sampling", "close_partial": "close_partial"},
+    )
     builder.add_conditional_edges(
         "sampling",
         route_unless_partial("metrics"),
         {"metrics": "metrics", "close_partial": "close_partial"},
     )
     builder.add_conditional_edges(
-        "metrics", route_after_metrics, {"sampling": "sampling", "research": "research"}
+        "metrics",
+        route_after_metrics,
+        {
+            "sampling": "sampling",
+            "research": "research",
+            "close_partial": "close_partial",
+        },
     )
     builder.add_conditional_edges(
         "research",
         route_unless_partial("screenshots"),
         {"screenshots": "screenshots", "close_partial": "close_partial"},
     )
-    builder.add_edge("screenshots", "write_draft")
-    builder.add_edge("write_draft", "skeptic")
+    builder.add_conditional_edges(
+        "screenshots",
+        route_unless_partial("write_draft"),
+        {"write_draft": "write_draft", "close_partial": "close_partial"},
+    )
+
+    builder.add_conditional_edges(
+        "write_draft",
+        route_unless_partial("skeptic"),
+        {"skeptic": "skeptic", "close_partial": "close_partial"},
+    )
     builder.add_conditional_edges(
         "skeptic",
         make_route_after_skeptic(max_review_rounds),
-        {"write_draft": "write_draft", "approval_request": "approval_request"},
+        {
+            "write_draft": "write_draft",
+            "approval_request": "approval_request",
+            "close_partial": "close_partial",
+        },
     )
-    builder.add_edge("approval_request", "approval_gate")
+    builder.add_conditional_edges(
+        "approval_request",
+        route_unless_partial("approval_gate"),
+        {
+            "approval_gate": "approval_gate",
+            "close_partial": "close_partial",
+        },
+    )
     builder.add_conditional_edges(
         "approval_gate",
         route_after_approval,
         {"finalize": "finalize", "close_rejected": "close_rejected"},
     )
-    builder.add_edge("finalize", END)
+    builder.add_conditional_edges(
+        "finalize",
+        route_unless_partial(END),
+        {END: END, "close_partial": "close_partial"},
+    )
     builder.add_edge("close_rejected", END)
     builder.add_edge("close_partial", END)
 

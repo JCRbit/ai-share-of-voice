@@ -57,6 +57,7 @@ class GraphState(TypedDict, total=False):
     approved: bool
     status: RunStatus
     partial_reason: str
+    failure_kind: str
     report_path: str
 
     # Trace
