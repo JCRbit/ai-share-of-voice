@@ -179,6 +179,7 @@ def test_a_failing_step_closes_the_run_in_a_partial_state(tmp_path: Path, fail_a
     config = start(graph)
     state = values(graph, config)
     assert state["status"] == "partial"
+    assert state["failure_kind"] == "unexpected"
     assert fail_at in state["partial_reason"]
     assert next_nodes(graph, config) == ()
     assert not nodes_with_status(state, "approval_request", EventStatus.WAITING_APPROVAL)
