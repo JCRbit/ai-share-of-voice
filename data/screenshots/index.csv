@@ -1,1 +1,6 @@
 file,url,captured_at,competitor,note
+glovo-madrid-home-2026-10-27.jpg,https://glovoapp.com/es/es/madrid,2026-10-27,Glovo,Home screen for Madrid before setting an address
+glovo-madrid-food-listing-gran-via-2026-10-27.jpg,https://glovoapp.com/es/es/madrid/categories/comida_1,2026-10-27,Glovo,"Food listing with a Gran Via, Madrid address set, top ~3000px of the full page: dozens of real restaurants (McDonald's, Five Guys, Pizza Hut, KFC, local options)"
+justeat-home-2026-10-27.jpg,https://www.just-eat.es/,2026-10-27,Just Eat,General home screen before entering an address
+justeat-madrid-listing-28014-2026-10-27.jpg,https://www.just-eat.es/area/28014-madrid,2026-10-27,Just Eat,"Restaurant listing with a Gran Via, Madrid address set (resolves to postal code 28014), top ~3000px of the full page"
+ubereats-madrid-feed-gran-via-2026-10-27.jpg,https://www.ubereats.com/es/feed,2026-10-27,Uber Eats,"Feed with a Gran Via, Madrid address set, top ~3000px of the full page: real restaurants and nearby businesses (Five Guys, McDonald's, Papa John's, Carrefour)"
