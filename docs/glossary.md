@@ -51,20 +51,29 @@ negative tone, independent of whether it is also recommended.
 
 ## Confidence interval
 
-The range the report shows next to a share (`ci_low`–`ci_high` in `BatchSummary` and in
-the tracking CSV) is the **hull** of two different intervals computed over the same
-batches of answers (`stats/metrics.py: brand_metrics`):
+The range the report shows next to each metric estimate (`ci_low`–`ci_high` in
+`BatchSummary` and in the tracking CSV) is computed over the same batches of answers
+(`stats/metrics.py: brand_metrics`). How it is computed depends on the metric, and
+`ci_method` (`interval_method` in `BatchSummary`) records which rule was used:
 
-- a **Wilson score interval** on the raw proportion, which assumes every answer is an
-  independent trial;
-- a **cluster bootstrap** that resamples whole *questions* (not individual answers),
-  because answers to the same question are not independent of each other.
+- **Binomial metrics** (`mention_rate`, `recommendation_rate`, `top1_rate`,
+  `recommendation_conversion`), `ci_method="wilson_bootstrap_hull"`: the **hull** of two
+  intervals, taking the lower of the two lower bounds and the higher of the two upper
+  bounds:
+  - a **Wilson score interval** on the raw proportion, which assumes every answer is an
+    independent trial;
+  - a **cluster bootstrap** that resamples whole *questions* (not individual answers),
+    because answers to the same question are not independent of each other.
 
-The report always takes the widest low and the widest high of the two, so the interval
-is never narrower than either method alone — Wilson alone would ignore the clustering,
-and the bootstrap alone collapses to a single point when a brand is never or always
-mentioned in the sample. This is a conservative reporting rule, not a statistically
-calibrated interval, and runs with fewer than the minimum reliable number of questions
-are flagged (`few_questions`) because the interval is too optimistic for them. The
-report always states this is a dated sample, never "market share" (see decision 8 and
-`automation/report.py`).
+  The hull is never narrower than either method alone: Wilson alone would ignore the
+  clustering, and the bootstrap alone collapses to a single point when a brand is never
+  or always mentioned in the sample. This is a conservative reporting rule, not a
+  statistically calibrated interval.
+- **`share_of_voice` and `net_tone`**, `ci_method="cluster_bootstrap"`: the cluster
+  bootstrap only. Wilson does not apply, because neither metric is a count of successes
+  among independent yes/no trials (share of voice divides by all brand mentions in each
+  answer, and net tone averages scores from -1 to +1).
+
+Runs with fewer than 10 questions (`MIN_RELIABLE_QUESTIONS`) are flagged
+(`few_questions`) because the intervals are too optimistic for them. The report always
+states this is a dated sample, never "market share" (`automation/report.py`).
