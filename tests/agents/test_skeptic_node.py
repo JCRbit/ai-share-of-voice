@@ -56,6 +56,11 @@ class BrokenClient:
         raise BudgetExceeded(spent_usd=2.5, cap_usd=2.0)
 
 
+class InvalidAnswerClient:
+    def complete[T: BaseModel](self, prompt: str, schema: type[T]) -> tuple[T, Usage]:
+        raise ValueError("invalid model response")
+
+
 def batch(index: int, answers: int, low: float, high: float) -> BatchSummary:
     return BatchSummary(
         batch_index=index,
@@ -162,6 +167,24 @@ def test_an_empty_draft_does_not_call_the_model(tmp_path: Path) -> None:
 def test_running_out_of_budget_propagates_for_the_guard_to_handle(tmp_path: Path) -> None:
     with pytest.raises(BudgetExceeded):
         make_skeptic_node(EventLog(tmp_path), BrokenClient())(make_state(GOOD))
+
+
+def test_invalid_model_answer_keeps_code_objections_and_succeeds(tmp_path: Path) -> None:
+    log = EventLog(tmp_path)
+    update = make_skeptic_node(log, InvalidAnswerClient())(make_state(BAD))
+
+    assert any(item.startswith("[unrecorded_figure]") for item in update["objections"])
+    assert "spend_usd" not in update
+    assert [event.status for event in update["events"]] == [
+        EventStatus.STARTED,
+        EventStatus.SUCCEEDED,
+    ]
+    assert "model review skipped: invalid answer" in update["events"][-1].result
+    assert update["events"][-1].cumulative_spend_usd == pytest.approx(0.10)
+    assert [event.status for event in log.read(RUN_ID)] == [
+        EventStatus.STARTED,
+        EventStatus.SUCCEEDED,
+    ]
 
 
 def test_overlong_model_claims_are_dropped_even_when_present_in_draft() -> None:
