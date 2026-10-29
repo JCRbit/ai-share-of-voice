@@ -129,6 +129,16 @@ def test_denying_market_share_is_fine() -> None:
     assert check_market_share("This is not market share.") == []
 
 
+def test_trailing_negation_does_not_cancel_causal_claim() -> None:
+    text = "Acme leads because of the review [S1], not by chance."
+    assert kinds(check_causality(text)) == [ObjectionKind.CAUSAL_CLAIM]
+
+
+def test_no_doubt_does_not_cancel_market_share_claim() -> None:
+    text = "With no doubt Acme holds the biggest market share."
+    assert kinds(check_market_share(text)) == [ObjectionKind.MARKET_SHARE_CLAIM]
+
+
 # ---- all checks together ----------------------------------------------------------------
 
 

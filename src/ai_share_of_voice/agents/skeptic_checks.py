@@ -34,8 +34,9 @@ _EVIDENCE = re.compile(
     re.IGNORECASE,
 )
 _MARKET_SHARE = re.compile(r"\bmarket[- ]share\b|\bcuota de mercado\b", re.IGNORECASE)
-_NEGATION = re.compile(
-    r"\b(not|no|never|cannot|can't|doesn't|does not|neither|nor|without|sin)\b",
+_NEGATION_BEFORE = re.compile(
+    r"\b(not|no|never|cannot|can't|does not|doesn't|neither|nor|without|sin)\b"
+    r"(?:\W+\w+){0,4}\W*$",
     re.IGNORECASE,
 )
 _CONTRAST = re.compile(
@@ -91,6 +92,11 @@ def sentences(draft: str) -> list[str]:
 def _clauses(sentence: str) -> list[str]:
     """Split a sentence at contrastive conjunctions for local checks."""
     return [part.strip() for part in _CONTRAST.split(sentence) if part.strip()]
+
+
+def _is_negated_before(text: str, position: int) -> bool:
+    """Detect a nearby negation before a trigger, not after the claim."""
+    return bool(_NEGATION_BEFORE.search(text[:position]))
 
 
 def _excerpt(sentence: str) -> str:
@@ -163,7 +169,12 @@ def check_causality(draft: str) -> list[Objection]:
 
     for sentence in sentences(draft):
         for clause in _clauses(sentence):
-            if _CAUSAL.search(clause) and _EVIDENCE.search(clause) and not _NEGATION.search(clause):
+            causal_match = _CAUSAL.search(clause)
+            if (
+                causal_match
+                and _EVIDENCE.search(clause)
+                and not _is_negated_before(clause, causal_match.start())
+            ):
                 found.append(_objection(ObjectionKind.CAUSAL_CLAIM, sentence, reason))
                 break
 
@@ -177,7 +188,8 @@ def check_market_share(draft: str) -> list[Objection]:
 
     for sentence in sentences(draft):
         if any(
-            _MARKET_SHARE.search(clause) and not _NEGATION.search(clause)
+            (match := _MARKET_SHARE.search(clause))
+            and not _is_negated_before(clause, match.start())
             for clause in _clauses(sentence)
         ):
             found.append(_objection(ObjectionKind.MARKET_SHARE_CLAIM, sentence, reason))
