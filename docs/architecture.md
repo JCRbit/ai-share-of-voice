@@ -10,27 +10,27 @@ LangGraph defines the sequence of steps, conditional routes, bounded loops, huma
 
 D1 brand metrics, D2 deterministic stopping policy, and D3 statistics-tool and chart modules are implemented. The graph/report integration for these components must be verified separately. The core workflow still uses simulated behavior where real integrations have not been completed.
 
-    ```mermaid
-    flowchart LR
-        A[Brief<br/>validated form] --> B[questions]
-        B --> C[sampling<br/>real model client integration]
-        C --> D[metrics<br/>D1 module implemented]
-        D --> E{stop?<br/>D2 policy implemented}
-        E -- no, another batch --> C
-        E -- yes --> F[research<br/>source tools planned]
-        F --> G[screenshots<br/>vision planned]
-        G --> H[write_draft]
-        H --> I[skeptic<br/>deterministic checks and optional model review]
-        I -- objections, at most 2 rounds --> H
-        I -- no objections or review limit reached --> J[approval_request]
-        J --> K{{human pause<br/>approval_gate}}
-        K -- approved --> L["finalize: real writer when explicitly injected"]
-        K -- rejected --> M[close_rejected]
-        B & C & D & F & G & H & I & J & L -. eligible failure .-> N[close_partial]
-    ```
+```mermaid
+flowchart LR
+    A[Brief<br/>validated form] --> B[questions]
+    B --> C[sampling<br/>real model client integration]
+    C --> D[metrics<br/>D1 module implemented]
+    D --> E{stop?<br/>D2 policy implemented}
+    E -- no, another batch --> C
+    E -- yes --> F[research<br/>source tools planned]
+    F --> G[screenshots<br/>vision planned]
+    G --> H[write_draft]
+    H --> I[skeptic<br/>deterministic checks and optional model review]
+    I -- objections, at most 2 rounds --> H
+    I -- no objections or review limit reached --> J[approval_request]
+    J --> K{{human pause<br/>approval_gate}}
+    K -- approved --> L["finalize: real writer when explicitly injected"]
+    K -- rejected --> M[close_rejected]
+    B & C & D & F & G & H & I & J & L -. eligible failure .-> N[close_partial]
+```
 
 - **Bounded loops.** The graph has a batch limit in its run configuration, a review-round limit, and a recursion limit. The deterministic D2 policy exists in `stats/stopping.py`, but it must be wired into the active graph before it can be treated as a runtime stopping safeguard.
-- **Approval protects final outputs.** The graph topology routes through human approval before `finalize`. The real node `make_finalize_node` writes the final report and tracking CSV when explicitly injected; `mock_run.py` uses `make_fake_nodes` and does not activate that real writer by default. The JSONL event log is written throughout execution, including before approval. Approval therefore does not prevent every execution-time write.
+- **Approval protects final outputs.** The graph topology routes through human approval before `finalize`. The real node `make_finalize_node` writes the final report and tracking CSV when explicitly injected; `ui/mock_run.py` uses `make_fake_nodes` and does not activate that real writer by default. The JSONL event log is written throughout execution, including before approval. Approval therefore does not prevent every execution-time write.
 - **Failure handling has limits.** Eligible exceptions raised by guarded nodes are recorded and routed to `close_partial`. Some exceptions are deliberately re-raised, and the human pause and selected safety-critical nodes are not guarded by default. Such failures may propagate instead of producing a partial close.
 - **Integration status matters.** A successful simulated graph run validates the simulated workflow and its tested contracts; it does not establish that real model calls, source retrieval, image analysis, or statistical calculations have been executed end to end.
 
@@ -157,7 +157,7 @@ The Skeptic can also perform optional model-assisted review. Deterministic check
 
 The checks are bounded heuristics, not a formal proof that a report is correct, unbiased, or fully supported by evidence. An objection should be retained, addressed, or explicitly qualified rather than silently discarded.
 
-The graph topology supports the Skeptic review loop, and tests explicitly inject `make_skeptic_node` to exercise the real implementation and objection routing. However, `mock_run.py` builds the graph with `make_fake_nodes`, so that entry point uses the simulated Skeptic. Verify each application entry point separately before claiming that the real Skeptic runs end to end.
+The graph topology supports the Skeptic review loop, and tests explicitly inject `make_skeptic_node` to exercise the real implementation and objection routing. However, `ui/mock_run.py` builds the graph with `make_fake_nodes`, so that entry point uses the simulated Skeptic. Verify each application entry point separately before claiming that the real Skeptic runs end to end.
 
 ## Module map
 
@@ -171,7 +171,7 @@ The graph topology supports the Skeptic review loop, and tests explicitly inject
 | `tools/` | Mention-extraction tool and D3 statistics tool |
 | `agents/` | Agent specifications, CrewAI factory, and Skeptic implementation |
 | `automation/` | Report generation, tracking CSV, and finalization |
-| `mock_run.py` | Runs the simulated graph end to end |
+| `ui/mock_run.py` | Runs the simulated graph end to end |
 
 Module names and responsibilities should be checked against the current repository when this document is updated. The table describes the intended organization and does not imply that every component is wired into the production graph.
 
@@ -228,7 +228,7 @@ Before describing the system as a fully integrated real workflow, verify the fol
 - [ ] Skeptic objections and review-round limits are preserved and handled correctly.
 - [ ] Source retrieval, page reading, and URL checks are implemented, registered, and tested before being described as operational.
 - [ ] Vision analysis is implemented and tested before visual findings are presented as actual runtime results.
-- [ ] Verify that the real finalization path requires explicit human approval before writing the final report and tracking CSV. The simulated `mock_run.py` path does not activate the real writer by default.
+- [ ] Verify that the real finalization path requires explicit human approval before writing the final report and tracking CSV. The simulated `ui/mock_run.py` path does not activate the real writer by default.
 - [ ] Partial failures, rejection, and finalization outcomes are recorded and tested.
 - [ ] A full real run has been executed, its artifacts inspected, and its behavior distinguished from simulated runs.
 

@@ -44,11 +44,11 @@ make check
 
 `make check` runs lint and tests; if it ends with all tests passing, your setup is ready.
 
-# Architecture
+## Architecture
 
-LangGraph defines the order of work, conditional routes, bounded loops and the human approval step. CrewAI agent specifications define roles, goals, backstories, tools and iteration limits. The graph topology places human approval before finalization. The real report and tracking CSV writer must be injected explicitly; `mock_run.py` uses simulated nodes and does not activate that writer by default. Run events are logged throughout execution, including before approval.
+LangGraph defines the order of work, conditional routes, bounded loops and the human approval step. CrewAI agent specifications define roles, goals, backstories, tools and iteration limits. The graph topology places human approval before finalization. The real report and tracking CSV writer must be injected explicitly; `ui/mock_run.py` uses simulated nodes and does not activate that writer by default. Run events are logged throughout execution, including before approval.
 
-The diagram shows the intended flow, not a fully integrated real run. D1–D3 modules exist, while the graph still uses simulated metrics and stopping behavior. The graph topology defines the Skeptic review loop, and tests exercise the real implementation when it is explicitly injected. However, `mock_run.py` builds the graph with simulated nodes. Defining a CrewAI agent specification does not mean that the agent or its tools execute in the graph. See [`docs/architecture.md`](docs/architecture.md) for the implementation status.
+The diagram shows the intended flow, not a fully integrated real run. D1–D3 modules exist, while the graph still uses simulated metrics and stopping behavior. The graph topology defines the Skeptic review loop, and tests exercise the real implementation when it is explicitly injected. However, `ui/mock_run.py` builds the graph with simulated nodes. Defining a CrewAI agent specification does not mean that the agent or its tools execute in the graph. See [`docs/architecture.md`](docs/architecture.md) for the implementation status.
 
 ```mermaid
 flowchart LR
@@ -60,7 +60,7 @@ flowchart LR
     E -- yes --> F[research<br/>source tools integration pending]
     F --> G[screenshots<br/>vision: planned]
     G --> H[write_draft]
-    H --> I[skeptic<br/>simulated in mock_run.py]
+    H --> I[skeptic<br/>simulated in ui/mock_run.py]
     I -- objections, at most 2 rounds --> H
     I -- none, or rounds used up --> J[approval_request]
     J --> K{{human pause<br/>approval_gate}}
