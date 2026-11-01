@@ -11,35 +11,135 @@ Project III, Module V (AI Engineering) — AgentSquad: multi-agent system with C
 ## Status
 C1 shared contracts and the A1 LangGraph skeleton are implemented. The A1 graph uses simulated nodes, bounded loops, SQLite checkpointing, human approval and JSONL audit events. See [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) for phases, owners and tasks.
 
-## Quick start
+## Installation
 
-**Requirements:** Git, Python 3.12 (3.13 also works; CrewAI does not support 3.14 yet) and `make`.
+These steps install the project and check that it works. They assume a machine with nothing
+installed; if a step fails, see [Troubleshooting](#troubleshooting).
 
-**Linux / macOS**
+### Requirements
+
+- **Python 3.12 or 3.13.** Python 3.14 is not supported yet because CrewAI does not support it, and
+  the project refuses to install on it.
+- **Git.**
+- `make` is optional: every step below has a direct command. GitHub CLI (`gh`) is only needed to work
+  with issues and pull requests.
+
+Check which Python versions you have:
+
+```powershell
+py -0p                      # Windows: lists every installed version
+```
+
+```bash
+python3.12 --version        # macOS / Linux
+```
+
+### 1. Get the code
 
 ```bash
 git clone https://github.com/JCRbit/ai-share-of-voice.git
 cd ai-share-of-voice
-python3.12 -m venv .venv && source .venv/bin/activate
-make install
-cp .env.example .env        # add your own key and spending cap
-make check
 ```
 
-**Windows (PowerShell)**
+### 2. Create the virtual environment
+
+Windows (PowerShell):
 
 ```powershell
-winget install ezwinports.make   # skip if you already have make; then restart your terminal/editor
-git clone https://github.com/JCRbit/ai-share-of-voice.git
-cd ai-share-of-voice
 py -3.12 -m venv .venv
-.venv\Scripts\Activate.ps1       # if blocked: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-make install
-Copy-Item .env.example .env      # add your own key and spending cap
-make check
+.\.venv\Scripts\Activate.ps1
 ```
 
-`make check` runs lint and tests; if it ends with all tests passing, your setup is ready.
+macOS / Linux:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+```
+
+The prompt now starts with `(.venv)`. Check the version inside the environment:
+
+```bash
+python --version            # must say 3.12.x or 3.13.x
+```
+
+### 3. Install the dependencies
+
+```bash
+pip install -r requirements-dev.txt
+pip install -e .
+pip check                   # must say: No broken requirements found.
+```
+
+The first install takes several minutes because CrewAI brings many packages. `pip install -e .`
+makes the `ai_share_of_voice` package importable, which `mock_run.py` needs. On macOS, Linux or
+any system with `make`, `make install` runs the first command only, so still run `pip install -e .`.
+
+### 4. Create your configuration file
+
+Windows (PowerShell):
+
+```powershell
+Copy-Item .env.example .env
+```
+
+macOS / Linux:
+
+```bash
+cp .env.example .env
+```
+
+Leave `LLM_MODE=simulated`. In that mode no API key is needed and nothing is spent. When the team
+enables the live mode, your own key and your own spending cap go in `.env`; see the variables listed in
+`.env.example`. **Never commit `.env`**; Git already ignores it.
+
+### 5. Install the Git hooks (only if you will contribute)
+
+```bash
+pre-commit install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
+```
+
+The hooks run `ruff` when you commit, check that the commit message follows
+[Conventional Commits](https://www.conventionalcommits.org/), and run the tests when you push.
+
+### 6. Check that everything works
+
+PowerShell:
+
+```powershell
+ruff check . ; ruff format --check . ; pytest -q
+python mock_run.py
+```
+
+macOS / Linux, or any system with `make`:
+
+```bash
+make check
+python mock_run.py
+```
+
+You should see:
+
+- `All checks passed!` from `ruff check`, and no file listed by `ruff format --check`.
+- A last line from `pytest` that says `passed` and has no `failed` or `error`.
+- `python mock_run.py` prints a series of JSON events and ends with `status=completed`. It runs the
+  whole graph with simulated nodes, so it needs no key and spends nothing. The run files are written
+  to the `runs/` folder, which Git ignores.
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `pip` refuses to install `crewai`, or says no matching distribution | You are using Python 3.14 | Install Python 3.12, delete `.venv` and repeat step 2 |
+| `python --version` shows 3.14 inside the environment | The environment was created with the wrong Python | Delete `.venv` and create it again with `py -3.12 -m venv .venv` |
+| `Activate.ps1 cannot be loaded because running scripts is disabled` | PowerShell execution policy | Run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned`, then activate again |
+| `ModuleNotFoundError: ai_share_of_voice` when running `python mock_run.py` | The package is not installed | Run `pip install -e .` with the environment active |
+| `make: command not found` on Windows | `make` is not installed | Use the direct commands of step 6, or run `winget install ezwinports.make` and restart the terminal |
+| `pip check` reports conflicts | A leftover environment from another Python or an older install | Delete `.venv` and start again from step 2 |
+| A commit is rejected by the hooks | The message does not follow Conventional Commits, or `ruff` reformatted a file | Use a message like `docs: fix a typo`; if `ruff` changed files, run `git add` again and commit again |
+| `git push` is rejected by the hooks | The tests fail | Run `pytest -q`, fix the failure and push again |
+| The prompt has no `(.venv)` | The environment is not active | Run the activation command of step 2 again |
+
 
 ## Methodology
 
@@ -133,8 +233,6 @@ only that a limit was hit. Every decision is logged with its reason. Defaults:
 - The cost of the next batch is an estimate (an average), not a guarantee.
 
 ## Sections (owners)
-- Installation — Ab
-- Methodology — E
 - Architecture, process justification and ethics — J
 - Configuration and usage — An
 
