@@ -127,6 +127,7 @@ def build_app(controller: RunController) -> gr.Blocks:
                         catalog.sector_choices("es"),
                         value=catalog.DEFAULT_SECTOR,
                         label=t("es", "sector"),
+                        filterable=False,  # a plain list: no typing cursor
                     )
                     sector_other = gr.Textbox(
                         label=t("es", "sector_other"),
@@ -138,18 +139,22 @@ def build_app(controller: RunController) -> gr.Blocks:
                         catalog.country_choices("es"),
                         value=catalog.DEFAULT_COUNTRY,
                         label=t("es", "country"),
+                        filterable=False,  # a plain list: no typing cursor
                     )
                     region = gr.Dropdown(
                         catalog.region_choices(catalog.DEFAULT_COUNTRY),
                         value=catalog.DEFAULT_REGION,
                         label=t("es", "region"),
-                        info=t("es", "region_info"),
+                        filterable=False,  # a plain list: no typing cursor
                     )
                     city = gr.Dropdown(
                         catalog.city_choices(catalog.DEFAULT_COUNTRY, catalog.DEFAULT_REGION),
                         value=catalog.DEFAULT_CITY,
                         label=t("es", "city"),
+                        filterable=False,  # a plain list: no typing cursor
                     )
+                # Below the row, so the three boxes stay aligned.
+                region_hint = gr.HTML(f"<span class='sov-muted'>{t('es', 'region_info')}</span>")
                 with gr.Accordion(t("es", "advanced"), open=False) as advanced:
                     advanced_help = gr.Markdown(t("es", "advanced_help"))
                     with gr.Row():
@@ -406,7 +411,8 @@ def build_app(controller: RunController) -> gr.Blocks:
                     choices=catalog.country_choices(new),
                     value=country_code,
                 ),
-                gr.update(label=t(new, "region"), info=t(new, "region_info")),
+                gr.update(label=t(new, "region")),
+                f"<span class='sov-muted'>{t(new, 'region_info')}</span>",
                 gr.update(label=t(new, "city")),
                 gr.update(label=t(new, "advanced")),
                 t(new, "advanced_help"),
@@ -451,6 +457,7 @@ def build_app(controller: RunController) -> gr.Blocks:
                 sector_other,
                 country,
                 region,
+                region_hint,
                 city,
                 advanced,
                 advanced_help,
