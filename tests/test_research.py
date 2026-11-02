@@ -168,3 +168,20 @@ def test_the_research_node_puts_the_sources_in_the_state(tmp_path):
     assert update["sources"] == [GOOD]
     assert "1 sources read" in update["events"][-1].result
     assert "1 flagged" in update["events"][-1].result
+
+
+def test_a_location_hint_disambiguates_the_city(tmp_path):
+    # Found in a live run: "Valencia" alone brought Valencia, California.
+    write_ranking(
+        tmp_path,
+        {"name": "Bershka", "kind": "store_or_restaurant", "rate": "0.3", "suggested": "True"},
+    )
+    search = ScriptedSearch(SEARCH)
+    with sources_factory(search)() as client:
+        research(BRIEF, tmp_path, client, location="Valencia, España")
+
+    assert search.queries == [
+        "clothing stores Valencia, España",
+        "Zara Valencia, España clothing stores",
+        '"Bershka" Valencia, España',
+    ]

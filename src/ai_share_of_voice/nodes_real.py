@@ -94,6 +94,7 @@ class RealNodeOptions:
     panel_file: Path | None = None  # an approved panel, reused as it is
     generate_panel: bool = False  # draft a panel for the brief when there is no file
     panel_size: int = DEFAULT_PANEL_SIZE
+    location: str | None = None  # e.g. "Valencia, España": disambiguates searches
 
 
 def load_panel(language: str, data_dir: Path) -> QuestionPanel:
@@ -330,7 +331,12 @@ def make_real_nodes(
         agent_name, tool = "source_researcher", "mcp_sources"
         events = [emit(state, "research", EventStatus.STARTED, agent=agent_name, tool=tool)]
         with sources() as client:
-            found = research(state["brief"], Path(runs_dir) / state["run_id"], client)
+            found = research(
+                state["brief"],
+                Path(runs_dir) / state["run_id"],
+                client,
+                location=options.location,
+            )
         result = (
             f"{len(found.sources)} sources read, {len(found.skipped)} skipped, "
             f"{found.flagged} flagged for injection"

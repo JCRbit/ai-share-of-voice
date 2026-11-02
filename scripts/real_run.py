@@ -83,6 +83,7 @@ def main() -> int:
     parser.add_argument("--generate", action="store_true", help="draft a panel for the brief")
     parser.add_argument("--panel", type=Path, help="reuse an approved questions.csv")
     parser.add_argument("--no-discovery", action="store_true")
+    parser.add_argument("--country", help="added to the city in web searches")
     args = parser.parse_args()
     custom = [args.sector, args.city, args.brand, args.competitors]
     if any(custom) and not all(custom):
@@ -119,6 +120,7 @@ def main() -> int:
             panel_file=args.panel,
             generate_panel=args.generate,
             discover=not args.no_discovery,
+            location=f"{brief.city}, {args.country}" if args.country else None,
         ),
         sources=lambda: open_stdio_sources(server_env),
     )

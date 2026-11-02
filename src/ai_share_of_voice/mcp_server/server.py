@@ -26,7 +26,8 @@ SERVER_NAME = "ai-share-of-voice-sources"
 
 
 def build_server(service: SourcesService) -> FastMCP:
-    server = FastMCP(SERVER_NAME)
+    # WARNING: its INFO lines go to stderr and would flood the console of every run.
+    server = FastMCP(SERVER_NAME, log_level="WARNING")
 
     @server.tool()
     def search_sources(query: str, max_results: int = 5) -> dict[str, Any]:

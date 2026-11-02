@@ -135,3 +135,7 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
   visible text only; injection flags; untrusted block), 16 tests, malicious fixture. Live check: the
   DuckDuckGo HTML endpoint answered the first request with a 202 bot challenge. Not bypassed:
   D-b needs an official search API (proposal: Tavily, free tier with key).
+- T5b/T5c (2026-11-02): MCP sources server (`mcp_server/server.py`, stdio) + client adapter
+  (`tools/mcp_sources_client.py`) + `research.py` node; Tavily as search (D-b decided). Live run
+  `run-20261102-210952-e36ca1`: 4 sources read, 0 injection flags, El Corte Ingles / Primark / Bershka found online.
+  3 of 4 sources were Valencia, California: added `location` ("Valencia, Espana", `--country`).

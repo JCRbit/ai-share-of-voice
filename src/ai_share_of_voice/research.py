@@ -78,10 +78,14 @@ def research(
     *,
     max_reads: int = MAX_READS,
     max_checks: int = MAX_CHECKS,
+    location: str | None = None,
 ) -> ResearchResult:
+    """``location`` (e.g. "Valencia, España") replaces the bare city in every query: a city
+    name alone can be ambiguous, and a live run got Valencia, California for Valencia."""
+    place = location or brief.city
     queries = [
-        f"{brief.sector} {brief.city}",
-        f"{brief.brand.name} {brief.city} {brief.sector}",
+        f"{brief.sector} {place}",
+        f"{brief.brand.name} {place} {brief.sector}",
     ]
     result = ResearchResult(queries=queries)
 
@@ -120,8 +124,7 @@ def research(
         )
 
     result.checks = [
-        _check(client, name, rate, brief.city)
-        for name, rate in _top_businesses(run_dir, max_checks)
+        _check(client, name, rate, place) for name, rate in _top_businesses(run_dir, max_checks)
     ]
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / RESEARCH_FILE_NAME).write_text(
