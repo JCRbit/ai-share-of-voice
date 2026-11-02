@@ -4,8 +4,9 @@
 real version, so the graph always runs end to end while the swap goes one node at a time.
 Real so far:
 
-* ``questions``: the panel from ``data/questions_es.csv`` or ``data/questions.csv``,
-  picked by ``Brief.language``.
+* ``questions``: an approved panel file if given, else a panel generated for the brief
+  (``panel.py``) if asked, else the demo panel of ``Brief.language``. The panel in use is
+  always saved as ``runs/<id>/questions.csv`` so a later run can reuse it.
 * ``sampling``: asks the measured model every question once and analyzes each answer
   with the mention tool right away. Raw and analyzed answers go to the run folder, one
   file per batch, so a re-run of the node overwrites its batch instead of duplicating it.
@@ -39,6 +40,12 @@ from ai_share_of_voice.discovery import (
 from ai_share_of_voice.errors import NoEvidence, ToolFailure
 from ai_share_of_voice.llm_client import Budget, QuotaExhausted
 from ai_share_of_voice.nodes import NodeDeps, NodeFn, _emit, make_fake_nodes
+from ai_share_of_voice.panel import (
+    DEFAULT_PANEL_SIZE,
+    generate_panel,
+    read_panel_file,
+    write_panel_file,
+)
 from ai_share_of_voice.schemas.analysis import AnalyzedResponse, RawAnswer
 from ai_share_of_voice.schemas.brief import Brief
 from ai_share_of_voice.schemas.events import EventStatus
@@ -63,6 +70,7 @@ from ai_share_of_voice.tools.stats_tool import ANSWERS_FILE_NAME
 RAW_FOLDER = "raw"
 DISCOVERED_FOLDER = "discovered"
 DISCOVERED_FILE_NAME = "discovered_businesses.csv"
+PANEL_FILE_NAME = "questions.csv"
 ANALYZED_FOLDER = "analyzed"
 QUESTION_FILES = {"es": "questions_es.csv", "en": "questions.csv"}
 DEFAULT_QUESTION_FILE = "questions.csv"
@@ -76,6 +84,9 @@ class RealNodeOptions:
     max_failed_share: float = 0.1  # above this share of failed questions, the batch fails
     extraction_attempts: int = 2
     discover: bool = True  # one more agent call per answer
+    panel_file: Path | None = None  # an approved panel, reused as it is
+    generate_panel: bool = False  # draft a panel for the brief when there is no file
+    panel_size: int = DEFAULT_PANEL_SIZE
 
 
 def load_panel(language: str, data_dir: Path) -> QuestionPanel:
@@ -170,10 +181,16 @@ def make_real_nodes(
         agent_name = "question_generator"
         events = [emit(state, "questions", EventStatus.STARTED, agent=agent_name)]
         brief = state["brief"]
-        panel = load_panel(brief.language, data_dir)
+        if options.panel_file is not None:
+            panel, source = read_panel_file(options.panel_file), "approved panel"
+        elif options.generate_panel:
+            panel, source = generate_panel(brief, agent, options.panel_size), "generated panel"
+        else:
+            panel, source = load_panel(brief.language, data_dir), "demo panel"
         if options.max_questions is not None:
             panel = QuestionPanel(questions=panel.questions[: options.max_questions])
-        result = f"{len(panel.questions)} questions ({brief.language}) from the panel file"
+        write_panel_file(panel, Path(runs_dir) / state["run_id"] / PANEL_FILE_NAME)
+        result = f"{len(panel.questions)} questions ({brief.language}) from the {source}"
         events.append(
             emit(state, "questions", EventStatus.SUCCEEDED, agent=agent_name, result=result)
         )

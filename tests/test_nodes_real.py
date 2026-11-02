@@ -19,10 +19,17 @@ from ai_share_of_voice.nodes_real import (
     ANALYZED_FOLDER,
     DISCOVERED_FILE_NAME,
     DISCOVERED_FOLDER,
+    PANEL_FILE_NAME,
     RAW_FOLDER,
     RealNodeOptions,
     load_panel,
     make_real_nodes,
+)
+from ai_share_of_voice.panel import (
+    DraftQuestion,
+    DraftQuestions,
+    read_panel_file,
+    write_panel_file,
 )
 from ai_share_of_voice.schemas.analysis import AnalyzedResponse, BrandMention, RawAnswer
 from ai_share_of_voice.schemas.brief import BrandSpec, Brief
@@ -431,3 +438,55 @@ def test_an_exhausted_quota_stops_sampling_at_once(tmp_path):
     with pytest.raises(QuotaExhausted):
         nodes["sampling"](state_for(panel("q1", "q2", "q3")))
     assert len(calls) == 1  # no point asking the other questions today
+
+
+# --- question panel source (R6) -------------------------------------------------------------
+
+
+def test_the_panel_in_use_is_always_saved_with_the_run(tmp_path):
+    nodes, _ = build(tmp_path, text_responder=lambda _: "x")
+
+    update = nodes["questions"]({"run_id": RUN_ID, "brief": make_brief()})
+
+    saved = read_panel_file(tmp_path / "runs" / RUN_ID / PANEL_FILE_NAME)
+    assert saved == update["panel"]
+
+
+def test_an_approved_panel_file_is_reused_as_it_is(tmp_path):
+    approved = write_panel_file(panel("a1", "a2"), tmp_path / "approved.csv")
+    nodes, _ = build(
+        tmp_path, text_responder=lambda _: "x", options=RealNodeOptions(panel_file=approved)
+    )
+
+    update = nodes["questions"]({"run_id": RUN_ID, "brief": make_brief()})
+
+    assert [question.id for question in update["panel"].questions] == ["a1", "a2"]
+    assert "approved panel" in update["events"][-1].result
+
+
+def test_a_panel_can_be_generated_for_the_brief(tmp_path):
+    texts = [f"¿Qué tienda de ropa me recomiendas número {index}?" for index in range(1, 13)]
+
+    def draft(prompt):
+        return DraftQuestions(
+            questions=[DraftQuestion(text=text, intent="recommendation") for text in texts]
+        )
+
+    budget = Budget(10.0)
+    agent = SimulatedClient(budget, responders={DraftQuestions: draft})
+    deps = NodeDeps(event_log=EventLog(tmp_path / "runs"), should_stop=fake_should_stop(2))
+    nodes = make_real_nodes(
+        deps,
+        subject=agent,
+        agent=agent,
+        budget=budget,
+        runs_dir=tmp_path / "runs",
+        data_dir=DATA_DIR,
+        options=RealNodeOptions(generate_panel=True, panel_size=12),
+    )
+
+    update = nodes["questions"]({"run_id": RUN_ID, "brief": make_brief()})
+
+    assert len(update["panel"].questions) == 12
+    assert "generated" in update["events"][-1].result
+    assert (tmp_path / "runs" / RUN_ID / PANEL_FILE_NAME).is_file()

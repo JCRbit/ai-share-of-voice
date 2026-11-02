@@ -1,7 +1,9 @@
 """Run the graph with the real nodes that exist so far (local integration, E).
 
 Usage: python scripts/real_run.py [--questions N] [--batches N] [--language es|en]
-Defaults are cheap on purpose: 5 questions, 2 batches. Uses .env (LLM_MODE=live for real
+       python scripts/real_run.py --sector "clothing stores" --city Valencia            --brand Zara --competitors "Mango,H&M" --generate
+       python scripts/real_run.py --panel runs/<previous run>/questions.csv
+Defaults are cheap on purpose: 5 questions, 2 batches, the demo brief and panel. Uses .env (LLM_MODE=live for real
 calls). Nodes without a real version yet stay simulated. The approval is automatic here,
 because the final action is still the simulated one.
 """
@@ -52,12 +54,37 @@ def demo_brief(language: str, cap_usd: float, max_batches: int) -> Brief:
     )
 
 
+def custom_brief(args: argparse.Namespace, cap_usd: float) -> Brief:
+    """A brief for any sector from the command line; names are split on commas."""
+    return Brief(
+        brand=BrandSpec(name=args.brand),
+        competitors=tuple(
+            BrandSpec(name=name.strip()) for name in args.competitors.split(",") if name.strip()
+        ),
+        sector=args.sector,
+        city=args.city,
+        language=args.language,
+        spend_cap_usd=cap_usd,
+        max_batches=args.batches,
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--questions", type=int, default=5)
     parser.add_argument("--batches", type=int, default=2)
     parser.add_argument("--language", default="es")
+    parser.add_argument("--sector")
+    parser.add_argument("--city")
+    parser.add_argument("--brand")
+    parser.add_argument("--competitors", help="at least two, separated by commas")
+    parser.add_argument("--generate", action="store_true", help="draft a panel for the brief")
+    parser.add_argument("--panel", type=Path, help="reuse an approved questions.csv")
+    parser.add_argument("--no-discovery", action="store_true")
     args = parser.parse_args()
+    custom = [args.sector, args.city, args.brand, args.competitors]
+    if any(custom) and not all(custom):
+        parser.error("--sector, --city, --brand and --competitors go together")
 
     try:
         settings = load_settings()
@@ -68,7 +95,11 @@ def main() -> int:
     run_id = new_run_id()
     log = EventLog(RUNS_DIR)
     clients = build_clients(settings, usage_log=RUNS_DIR / run_id / "usage.jsonl")
-    brief = demo_brief(args.language, settings.spend_cap_usd, args.batches)
+    brief = (
+        custom_brief(args, settings.spend_cap_usd)
+        if args.sector
+        else demo_brief(args.language, settings.spend_cap_usd, args.batches)
+    )
     deps = NodeDeps(event_log=log, should_stop=should_stop)
     nodes = make_real_nodes(
         deps,
@@ -77,7 +108,12 @@ def main() -> int:
         budget=clients.budget,
         runs_dir=RUNS_DIR,
         data_dir=DATA_DIR,
-        options=RealNodeOptions(max_questions=args.questions),
+        options=RealNodeOptions(
+            max_questions=args.questions,
+            panel_file=args.panel,
+            generate_panel=args.generate,
+            discover=not args.no_discovery,
+        ),
     )
     graph = build_graph(guard_nodes(nodes, log), checkpointer=memory_checkpointer())
     config = run_config(run_id, brief)
@@ -85,7 +121,9 @@ def main() -> int:
     print(
         f"run_id={run_id} mode={settings.mode} subject={clients.subject.model} "
         f"agent={clients.agent.model} questions={args.questions} batches<={args.batches} "
-        f"cap={settings.spend_cap_usd} USD"
+        f"cap={settings.spend_cap_usd} USD
+brief: {brief.brand.name} vs "
+        f"{', '.join(c.name for c in brief.competitors)} · {brief.sector} · {brief.city}"
     )
     graph.invoke(initial_state(brief, run_id), config)
     if graph.get_state(config).next == ("approval_gate",):
