@@ -124,6 +124,29 @@ TEXTS: dict[str, dict[str, str]] = {
         "rejected": "Rechazado: no se ha publicado nada",
         "error": "Algo ha fallado",
         "notes_title": "Ten en cuenta",
+        "chart_rates_title": "¿Qué marcas nombra y recomienda la IA?",
+        "chart_named": "La nombra",
+        "chart_recommended": "La recomienda",
+        "chart_axis": "% de respuestas de la IA",
+        "chart_rates_note": "Las líneas finas sobre cada barra son el margen de error.",
+        "chart_rates_caption": "**Cómo leerlo:** la barra oscura es cuántas veces la IA nombra "
+        "cada marca; la clara, cuántas veces la recomienda. Que te nombre no basta: lo valioso "
+        "es que te recomiende. Tu marca va en color.",
+        "chart_precision_title": "¿Es fiable el resultado?",
+        "chart_rounds": "Ronda de preguntas",
+        "chart_margin": "Margen de error",
+        "chart_target": "Objetivo de precisión",
+        "chart_precision_note": "Cada ronda repite las preguntas; el margen se estrecha al "
+        "acumular respuestas.",
+        "chart_precision_caption": "**Cómo leerlo:** cada punto es el margen de error tras una "
+        "ronda de preguntas. Cuanto más baja la línea, más fiable el resultado. La medición se "
+        "para sola al llegar al objetivo, o antes si el margen deja de mejorar o se acaba el "
+        "presupuesto.",
+        "sector_other": "Escribe tu sector",
+        "need_city": "elige país, región y ciudad",
+        "need_sector": "escribe tu sector o elige uno de la lista",
+        "region": "Región",
+        "region_info": "Comunidad autónoma en España; región en Portugal y Francia",
     },
     "en": {
         "app_title": "AI Share of Voice",
@@ -236,6 +259,29 @@ TEXTS: dict[str, dict[str, str]] = {
         "rejected": "Rejected: nothing was published",
         "error": "Something went wrong",
         "notes_title": "Keep in mind",
+        "chart_rates_title": "Which brands does the AI name and recommend?",
+        "chart_named": "Named",
+        "chart_recommended": "Recommended",
+        "chart_axis": "% of AI answers",
+        "chart_rates_note": "The thin lines on each bar are the margin of error.",
+        "chart_rates_caption": "**How to read it:** the dark bar is how often the AI names each "
+        "brand; the light one, how often it recommends it. Being named is not enough: what "
+        "matters is being recommended. Your brand is in colour.",
+        "chart_precision_title": "How reliable is the result?",
+        "chart_rounds": "Round of questions",
+        "chart_margin": "Margin of error",
+        "chart_target": "Precision target",
+        "chart_precision_note": "Each round repeats the questions; the margin narrows as answers "
+        "add up.",
+        "chart_precision_caption": "**How to read it:** each point is the margin of error after a "
+        "round of questions. The lower the line, the more reliable the result. The measurement "
+        "stops on its own at the target, or earlier if the margin stops improving or the budget "
+        "runs out.",
+        "sector_other": "Type your sector",
+        "need_city": "choose a country, region and city",
+        "need_sector": "type your sector or choose one from the list",
+        "region": "Region",
+        "region_info": "Autonomous community in Spain; region in Portugal and France",
     },
 }
 

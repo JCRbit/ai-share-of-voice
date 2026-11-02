@@ -33,10 +33,23 @@ from ai_share_of_voice.nodes_real import DISCOVERED_FILE_NAME, RealNodeOptions, 
 from ai_share_of_voice.research import RESEARCH_FILE_NAME
 from ai_share_of_voice.schemas.base import Contract
 from ai_share_of_voice.schemas.brief import BrandSpec, Brief
+from ai_share_of_voice.stats.charts import (
+    BrandRates,
+    PrecisionChartText,
+    RatesChartText,
+    precision_chart,
+    rates_chart,
+)
 from ai_share_of_voice.stats.stopping import should_stop
 from ai_share_of_voice.tools.mcp_sources_client import McpSourcesClient
-from ai_share_of_voice.tools.stats_tool import StatsToolError, StatsToolInput, run_stats
+from ai_share_of_voice.tools.stats_tool import (
+    CHARTS_FOLDER,
+    StatsToolError,
+    StatsToolInput,
+    run_stats,
+)
 from ai_share_of_voice.ui.demo_responders import demo_responders
+from ai_share_of_voice.ui.i18n import t
 from ai_share_of_voice.ui.results_tab import ResultsView, build_results_view
 
 Phase = Literal["running", "waiting_approval", "completed", "partial", "rejected", "error"]
@@ -255,6 +268,14 @@ class RunController:
 
     # --- results ----------------------------------------------------------------------------
 
+    def charts(self, run_id: str, lang: str) -> tuple[str | None, str | None]:
+        """Paths of the rates and precision charts in ``lang`` (``None`` when not ready)."""
+        run = self._runs[run_id]
+        if run.graph is None:
+            return None, None
+        state = run.graph.get_state(run.config).values
+        return _build_charts(state, self.runs_dir, run_id, run.target_half_width, lang)
+
     def results(self, run_id: str) -> ResultsBundle:
         run = self._runs[run_id]
         run_dir = self.runs_dir / run_id
@@ -293,3 +314,58 @@ def _client_rate(run_id: str, brand: str, runs_dir: Path, metric: str) -> float 
         return None
     row = next((row for row in result.rows if row.brand == brand), None)
     return None if row is None else row.estimate
+
+
+def _build_charts(
+    state: dict[str, Any], runs_dir: Path, run_id: str, target_half_width: float, lang: str
+) -> tuple[str | None, str | None]:
+    """The two app charts of a run in ``lang``: (rates chart, precision chart) paths."""
+    history = state.get("history", [])
+    brief = state.get("brief")
+    folder = runs_dir / run_id / CHARTS_FOLDER
+    rates_path = precision_path = None
+    try:
+        mention = run_stats(
+            StatsToolInput(run_id=run_id, metric="mention_rate", chart=False), runs_dir
+        )
+        recommendation = run_stats(
+            StatsToolInput(run_id=run_id, metric="recommendation_rate", chart=False), runs_dir
+        )
+    except StatsToolError:
+        mention = recommendation = None
+    if mention is not None and brief is not None:
+        recommended = {row.brand: row for row in recommendation.rows}
+        rows = [
+            BrandRates(
+                brand=row.brand,
+                mention=(row.estimate or 0.0, row.ci_low or 0.0, row.ci_high or 0.0),
+                recommendation=(
+                    (rec.estimate or 0.0, rec.ci_low or 0.0, rec.ci_high or 0.0)
+                    if (rec := recommended.get(row.brand)) is not None
+                    else None
+                ),
+            )
+            for row in mention.rows
+        ]
+        text = RatesChartText(
+            title=t(lang, "chart_rates_title"),
+            mention=t(lang, "chart_named"),
+            recommendation=t(lang, "chart_recommended"),
+            axis=t(lang, "chart_axis"),
+            note=t(lang, "chart_rates_note"),
+        )
+        rates_path = str(
+            rates_chart(rows, brief.brand.name, folder / f"app_rates_{lang}.png", text)
+        )
+    if history:
+        text = PrecisionChartText(
+            title=t(lang, "chart_precision_title"),
+            rounds=t(lang, "chart_rounds"),
+            margin=t(lang, "chart_margin"),
+            target=t(lang, "chart_target"),
+            note=t(lang, "chart_precision_note"),
+        )
+        precision_path = str(
+            precision_chart(history, target_half_width, folder / f"app_precision_{lang}.png", text)
+        )
+    return rates_path, precision_path

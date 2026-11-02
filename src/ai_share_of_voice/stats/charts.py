@@ -229,14 +229,22 @@ def _rates_figure(rows: Sequence[BrandRates], client: str, text: RatesChartText)
     axes.set_ylim(0.0, 1.05)
     axes.yaxis.set_major_formatter(PercentFormatter(xmax=1.0))
     axes.set_ylabel(text.axis)
-    axes.set_title(text.title, loc="left", fontweight="bold")
+    axes.set_title(text.title, loc="left", fontweight="bold", pad=26)
     axes.grid(axis="y", alpha=0.25)
     axes.spines[["top", "right"]].set_visible(False)
     handles = [
         plt.Rectangle((0, 0), 1, 1, color=_CLIENT[0]),
         plt.Rectangle((0, 0), 1, 1, color=_CLIENT[1]),
     ]
-    axes.legend(handles, [text.mention, text.recommendation], frameon=False, loc="upper right")
+    # Between the title and the plot, so it never hides a bar or an error bar.
+    axes.legend(
+        handles,
+        [text.mention, text.recommendation],
+        frameon=False,
+        loc="lower left",
+        bbox_to_anchor=(0.0, 1.0),
+        ncol=2,
+    )
     figure.text(0.5, 0.01, text.note, ha="center", fontsize=8, color="#555555")
     figure.tight_layout(rect=(0, 0.05, 1, 1))
     return figure
@@ -274,12 +282,12 @@ def precision_chart(
     axes.set_xticks(rounds)
     axes.set_xlabel(text.rounds)
     axes.set_ylabel(text.margin)
-    axes.yaxis.set_major_formatter(PercentFormatter(xmax=1.0))
+    axes.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
     axes.set_ylim(0.0, max([*margins, target_half_width]) * 1.25)
-    axes.set_title(text.title, loc="left", fontweight="bold")
+    axes.set_title(text.title, loc="left", fontweight="bold", pad=26)
     axes.grid(alpha=0.25)
     axes.spines[["top", "right"]].set_visible(False)
-    axes.legend(frameon=False)
+    axes.legend(frameon=False, loc="lower left", bbox_to_anchor=(0.0, 1.0), ncol=2)
     figure.text(0.5, 0.01, text.note, ha="center", fontsize=8, color="#555555")
     figure.tight_layout(rect=(0, 0.05, 1, 1))
     return _save(figure, path)

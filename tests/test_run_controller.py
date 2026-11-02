@@ -133,3 +133,16 @@ def test_a_failure_inside_the_run_is_shown_as_an_error(tmp_path):
 
     assert view.phase == "error"
     assert "provider down" in view.error
+
+
+@pytest.mark.parametrize("lang", ["es", "en"])
+def test_the_app_charts_are_drawn_in_the_interface_language(controller, lang):
+    run_id = controller.start(form())
+    controller.wait(run_id, timeout=60)
+
+    rates, precision = controller.charts(run_id, lang)
+
+    assert rates.endswith(f"app_rates_{lang}.png") and precision.endswith(
+        f"app_precision_{lang}.png"
+    )
+    assert Path(rates).read_bytes().startswith(b"\x89PNG")

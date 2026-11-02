@@ -150,3 +150,7 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
 - Port guard (2026-11-02): `ui/port_guard.py`; app.py closes an old instance of itself on 7860
   (Gradio title + runs/app.pid must both match), never another program (moves to next port).
   Checked live: instance B closed A (pid 10212) and took 7860.
+- Brief form + charts (2026-11-02): cascading Country (ES/PT/FR) > Region > City dropdowns and
+  12 sectors + "Other" (`ui/catalog.py`); two visible charts in the interface language (named vs
+  recommended with margins; margin of error per round) in `stats/charts.py`; own navigation bar
+  because Gradio only relabels the open tab; Gradio footer hidden. Checked in the browser ES/EN.

@@ -39,6 +39,12 @@ APP_CSS = """
 :root { --sov-ok:#15803d; --sov-warn:#b45309; --sov-bad:#b91c1c; --sov-info:#4338ca;
         --sov-accent:#4f46e5; --sov-soft:rgba(79,70,229,.08); }
 .gradio-container { max-width: 1120px !important; margin: 0 auto !important; }
+.sov-tabs > .tab-wrapper { display: none !important; }
+.sov-nav .wrap { gap: 6px !important; border-bottom: 1px solid var(--border-color-primary);
+  padding-bottom: 8px; }
+.sov-nav label { border-radius: 999px !important; padding: 8px 16px !important;
+  font-weight: 600; }
+.sov-nav input[type=radio] { display: none; }
 .sov-topbar { display:flex; align-items:center; gap: 12px; padding: 6px 2px; }
 .sov-logo { width: 38px; height: 38px; border-radius: 10px; display:flex; align-items:center;
   justify-content:center; font-size: 20px; color:#fff;
