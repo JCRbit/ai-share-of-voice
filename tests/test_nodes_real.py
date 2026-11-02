@@ -13,7 +13,7 @@ from ai_share_of_voice.discovery import (
 from ai_share_of_voice.errors import NoEvidence, ToolFailure
 from ai_share_of_voice.event_log import EventLog
 from ai_share_of_voice.exceptions import BudgetExceeded
-from ai_share_of_voice.llm_client import Budget, SimulatedClient
+from ai_share_of_voice.llm_client import Budget, QuotaExhausted, SimulatedClient
 from ai_share_of_voice.nodes import NodeDeps, fake_should_stop
 from ai_share_of_voice.nodes_real import (
     ANALYZED_FOLDER,
@@ -417,3 +417,17 @@ def test_metrics_writes_the_ranking_of_untracked_businesses(tmp_path):
     header, *rows = ranking.splitlines()
     assert header.startswith("name,kind,rate")
     assert len(rows) == 1 and rows[0].startswith("Bolt Food,app_or_platform,1.0")
+
+
+def test_an_exhausted_quota_stops_sampling_at_once(tmp_path):
+    calls = []
+
+    def quota(prompt):
+        calls.append(prompt)
+        raise QuotaExhausted("llm_client", "429 requests per day exceeded")
+
+    nodes, _ = build(tmp_path, text_responder=quota)
+
+    with pytest.raises(QuotaExhausted):
+        nodes["sampling"](state_for(panel("q1", "q2", "q3")))
+    assert len(calls) == 1  # no point asking the other questions today

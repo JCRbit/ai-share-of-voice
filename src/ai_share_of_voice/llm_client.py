@@ -82,6 +82,21 @@ class InvalidModelResponse(ValueError):
     """The model answered, but not in the requested shape."""
 
 
+class QuotaExhausted(ToolFailure):
+    """The provider refuses calls until its quota resets (a daily or plan limit).
+
+    Retrying or asking the next question cannot help, so callers stop at once.
+    """
+
+
+_QUOTA_HINTS = ("per day", "quota", "billing")
+
+
+def _is_quota_error(error: Exception) -> bool:
+    text = str(error).casefold()
+    return getattr(error, "status_code", None) == 429 and any(hint in text for hint in _QUOTA_HINTS)
+
+
 class Budget:
     """Spending cap shared by every client of one run. Thread-safe."""
 
@@ -121,10 +136,14 @@ class UsageLog:
         self.label = label
         self._lock = threading.Lock()
 
-    def write(self, usage: Usage, ok: bool) -> None:
+    def write(self, usage: Usage, ok: bool, error: Exception | None = None) -> None:
         if self.path is None:
             return
-        line = json.dumps({"label": self.label, "ok": ok, **usage.model_dump()})
+        record: dict[str, Any] = {"label": self.label, "ok": ok, **usage.model_dump()}
+        if error is not None:
+            record["error"] = type(error).__name__
+            record["status_code"] = getattr(error, "status_code", None)
+        line = json.dumps(record)
         with self._lock:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with self.path.open("a", encoding="utf-8") as handle:
@@ -206,8 +225,9 @@ class LiveClient:
             # The request may have been billed: charge the input estimate, never nothing.
             usage = self._usage(estimated_input, 0)
             self.budget.settle(reservation, usage.cost_usd)
-            self._log.write(usage, ok=False)
-            raise ToolFailure(TOOL_NAME, f"{type(error).__name__}: {error}") from None
+            self._log.write(usage, ok=False, error=error)
+            failure = QuotaExhausted if _is_quota_error(error) else ToolFailure
+            raise failure(TOOL_NAME, f"{type(error).__name__}: {error}") from None
 
         usage = self._usage(response.usage.prompt_tokens, response.usage.completion_tokens)
         self.budget.settle(reservation, usage.cost_usd)

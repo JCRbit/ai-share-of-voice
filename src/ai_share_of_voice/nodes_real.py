@@ -37,7 +37,7 @@ from ai_share_of_voice.discovery import (
     ranking_rows,
 )
 from ai_share_of_voice.errors import NoEvidence, ToolFailure
-from ai_share_of_voice.llm_client import Budget
+from ai_share_of_voice.llm_client import Budget, QuotaExhausted
 from ai_share_of_voice.nodes import NodeDeps, NodeFn, _emit, make_fake_nodes
 from ai_share_of_voice.schemas.analysis import AnalyzedResponse, RawAnswer
 from ai_share_of_voice.schemas.brief import Brief
@@ -202,6 +202,8 @@ def make_real_nodes(
                     text=text,
                 )
                 analysis = _analyze(answer, brief, agent, options.extraction_attempts)
+            except QuotaExhausted:
+                raise  # the rest of the panel would fail the same way today
             except (ToolFailure, ExtractionError, ValidationError, ValueError):
                 failed.append(question.id)
                 continue

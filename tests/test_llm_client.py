@@ -11,6 +11,7 @@ from ai_share_of_voice.llm_client import (
     Budget,
     InvalidModelResponse,
     LiveClient,
+    QuotaExhausted,
     SimulatedClient,
     build_clients,
     price_of,
@@ -276,3 +277,31 @@ def test_build_clients_opens_one_sdk_per_endpoint():
     assert clients.vision._sdk is clients.subject._sdk
     assert clients.agent._sdk is not clients.subject._sdk
     assert clients.vision.model == settings.vision_model
+
+
+class FakeRateLimitError(Exception):
+    """Mimics openai.RateLimitError: a 429 with the provider message."""
+
+    status_code = 429
+
+
+def test_a_daily_quota_error_is_quota_exhausted_and_logged(tmp_path):
+    log = tmp_path / "usage.jsonl"
+    message = "Quota exceeded for metric: generate_content_free_tier_requests, limit: 20 per day"
+    client = live(FakeCompletions([], error=FakeRateLimitError(message)), usage_log=log)
+
+    with pytest.raises(QuotaExhausted) as error:
+        client.answer("prompt")
+    assert isinstance(error.value, ToolFailure)  # the guard still closes the run cleanly
+    line = json.loads(log.read_text("utf-8"))
+    assert (line["ok"], line["error"], line["status_code"]) == (False, "FakeRateLimitError", 429)
+
+
+def test_a_per_minute_rate_limit_is_a_plain_tool_failure():
+    client = live(
+        FakeCompletions([], error=FakeRateLimitError("Rate limit: 30 requests per minute"))
+    )
+
+    with pytest.raises(ToolFailure) as error:
+        client.answer("prompt")
+    assert not isinstance(error.value, QuotaExhausted)
