@@ -78,3 +78,5 @@ R5. One live run under 0.50 USD, logged in `runs/`.
   agents and vision stay on Groq. Comparing subjects = one run per subject model.
 - Vision provider (2026-11-02): Groq retired llama-4-scout; `VISION_PROVIDER=gemini` reuses the Gemini
   key. `ping_llm.py --models` lists the models of each provider.
+- Gemini model (2026-11-02): subject and vision on pinned `gemini-3.8-flash` (free tier; paid 0.75/3.75
+  per 1M until 2026-12-31, doubles in 2027). `gemini-2.5-flash` is deprecated and reroutes on 2026-12-01.

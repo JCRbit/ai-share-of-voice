@@ -58,7 +58,12 @@ PRICES: dict[str, Price] = {
     "openai/gpt-oss-120b": Price(0.15, 0.75),
     "openai/gpt-oss-20b": Price(0.075, 0.30),
     "meta-llama/llama-4-scout-17b-16e-instruct": Price(0.11, 0.34),
-    # Gemini 2.5 thinks before answering: thinking tokens are billed as output.
+    # Gemini thinks before answering: thinking tokens are billed as output.
+    # 3.6/3.8 Flash prices double on 2027-01-01 (1.50 / 7.50); checked 2026-11-02.
+    "gemini-3.8-flash": Price(0.75, 3.75),
+    "gemini-3.6-flash": Price(0.75, 3.75),
+    "gemini-3.5-flash-lite": Price(0.30, 2.50),
+    # Deprecated: from 2026-12-01 its requests are routed to gemini-3.5-flash-lite.
     "gemini-2.5-flash": Price(0.30, 2.50),
     "gemini-2.5-flash-lite": Price(0.10, 0.40),
 }

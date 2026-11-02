@@ -46,10 +46,12 @@ DEFAULT_MODELS = {
         # No vision model on Groq at that date: use VISION_PROVIDER=gemini.
         "vision": "meta-llama/llama-4-scout-17b-16e-instruct",
     },
+    # Pinned version, never an alias such as gemini-flash-latest: the measured model must
+    # not change between runs without us knowing.
     Provider.GEMINI: {
-        "subject": "gemini-2.5-flash",
-        "agent": "gemini-2.5-flash",
-        "vision": "gemini-2.5-flash",
+        "subject": "gemini-3.8-flash",
+        "agent": "gemini-3.8-flash",
+        "vision": "gemini-3.8-flash",
     },
 }
 
