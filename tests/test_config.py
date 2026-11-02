@@ -125,3 +125,26 @@ def test_the_subject_key_is_secret_too():
     settings = load_settings(live_env(SUBJECT_PROVIDER="gemini", SUBJECT_API_KEY="AIza_fake"))
 
     assert "AIza_fake" not in repr(settings)
+
+
+def test_vision_on_gemini_reuses_the_subject_key():
+    settings = load_settings(
+        live_env(SUBJECT_PROVIDER="gemini", SUBJECT_API_KEY="AIza_fake", VISION_PROVIDER="gemini")
+    )
+
+    assert settings.vision_provider is Provider.GEMINI
+    assert settings.vision_base_url == GEMINI_BASE_URL
+    assert settings.vision_api_key.get_secret_value() == "AIza_fake"
+    assert settings.vision_model.startswith("gemini")
+
+
+def test_vision_defaults_to_the_agent_provider():
+    settings = load_settings(live_env())
+
+    assert settings.vision_provider is Provider.GROQ
+    assert settings.vision_api_key.get_secret_value() == FAKE_KEY
+
+
+def test_vision_on_a_provider_without_any_key_is_a_clear_error():
+    with pytest.raises(ConfigError, match="VISION_API_KEY"):
+        load_settings(live_env(VISION_PROVIDER="gemini"))

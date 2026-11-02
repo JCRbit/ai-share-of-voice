@@ -252,3 +252,27 @@ def test_build_clients_puts_the_subject_on_its_own_provider():
     assert sorted(made) == sorted(
         [(settings.base_url, "gsk_fake"), (settings.subject_base_url, "AIza_fake")]
     )
+
+
+def test_build_clients_opens_one_sdk_per_endpoint():
+    settings = load_settings(
+        {
+            "LLM_MODE": "live",
+            "LLM_API_KEY": "gsk_fake",
+            "SUBJECT_PROVIDER": "gemini",
+            "SUBJECT_API_KEY": "AIza_fake",
+            "VISION_PROVIDER": "gemini",
+        }
+    )
+    made = []
+
+    def sdk_factory(base_url, api_key):
+        made.append((base_url, api_key))
+        return fake_sdk(FakeCompletions([]))
+
+    clients = build_clients(settings, sdk_factory=sdk_factory)
+
+    assert len(made) == 2  # Groq for the agents, Gemini shared by subject and vision
+    assert clients.vision._sdk is clients.subject._sdk
+    assert clients.agent._sdk is not clients.subject._sdk
+    assert clients.vision.model == settings.vision_model

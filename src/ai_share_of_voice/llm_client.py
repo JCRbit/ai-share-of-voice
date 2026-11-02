@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, SecretStr, ValidationError
 
 from ai_share_of_voice.config import LlmMode, Settings
 from ai_share_of_voice.errors import ToolFailure
@@ -293,25 +293,30 @@ def build_clients(
         simulated = SimulatedClient(budget, responders, text_responder)
         return ModelClients(subject=simulated, agent=simulated, vision=simulated, budget=budget)
 
-    agent_sdk = sdk_factory(settings.base_url, settings.api_key.get_secret_value())
-    subject_key = settings.subject_api_key.get_secret_value()
-    same_endpoint = (settings.subject_base_url, subject_key) == (
-        settings.base_url,
-        settings.api_key.get_secret_value(),
-    )
-    subject_sdk = (
-        agent_sdk if same_endpoint else sdk_factory(settings.subject_base_url, subject_key)
-    )
+    sdks: dict[tuple[str, str], Any] = {}
 
-    def client(model: str, sdk: Any, label: str, temperature: float | None) -> LiveClient:
+    def client(
+        model: str, base_url: str, key: SecretStr | None, label: str, temperature: float | None
+    ) -> LiveClient:
+        endpoint = (base_url, key.get_secret_value() if key else "")
+        if endpoint not in sdks:  # one SDK (and connection pool) per endpoint
+            sdks[endpoint] = sdk_factory(*endpoint)
         return LiveClient(
-            model, budget, sdk, temperature=temperature, usage_log=usage_log, label=label
+            model, budget, sdks[endpoint], temperature=temperature, usage_log=usage_log, label=label
         )
 
     return ModelClients(
         # Subject keeps the provider's default temperature: we measure what users get.
-        subject=client(settings.subject_model, subject_sdk, "subject", None),
-        agent=client(settings.agent_model, agent_sdk, "agent", 0.0),
-        vision=client(settings.vision_model, agent_sdk, "vision", 0.0),
+        subject=client(
+            settings.subject_model,
+            settings.subject_base_url,
+            settings.subject_api_key,
+            "subject",
+            None,
+        ),
+        agent=client(settings.agent_model, settings.base_url, settings.api_key, "agent", 0.0),
+        vision=client(
+            settings.vision_model, settings.vision_base_url, settings.vision_api_key, "vision", 0.0
+        ),
         budget=budget,
     )

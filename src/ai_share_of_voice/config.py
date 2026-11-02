@@ -1,7 +1,8 @@
 """Runtime settings read from the environment (``.env`` in development).
 
 One place decides which provider, models, keys and cap a run uses. The measured (subject)
-model may live on another provider than the agents, with its own key. Two rules:
+model and the vision model may live on another provider than the agents. A role on another
+provider reuses a key already given for that provider, or needs its own. Two rules:
 
 * ``simulated`` is the default, so tests and CI never need a key or spend money.
 * Keys are ``SecretStr``: they never show up in ``repr``, logs or error messages.
@@ -41,6 +42,7 @@ DEFAULT_MODELS = {
     Provider.GROQ: {
         "subject": "llama-3.3-70b-versatile",
         "agent": "openai/gpt-oss-120b",
+        # Retired by Groq in 2026: use VISION_PROVIDER=gemini or set VISION_MODEL.
         "vision": "meta-llama/llama-4-scout-17b-16e-instruct",
     },
     Provider.GEMINI: {
@@ -71,6 +73,9 @@ class Settings(BaseModel):
     subject_base_url: str
     subject_model: str = Field(min_length=1)
     agent_model: str = Field(min_length=1)  # the model that runs the agents
+    vision_provider: Provider
+    vision_api_key: SecretStr | None
+    vision_base_url: str
     vision_model: str = Field(min_length=1)
     spend_cap_usd: float = Field(gt=0)
     search_provider: SearchProvider
@@ -126,15 +131,23 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
     if mode is LlmMode.LIVE and api_key is None:
         raise ConfigError("LLM_MODE=live needs LLM_API_KEY in .env")
 
+    keys: dict[Provider, SecretStr] = {provider: api_key} if api_key else {}
+
+    def role_key(role: str, role_provider: Provider) -> SecretStr | None:
+        """The role's own key, else a key already given for the same provider."""
+        key = _secret(env, f"{role}_API_KEY") or keys.get(role_provider)
+        if key is None and mode is LlmMode.LIVE:
+            raise ConfigError(
+                f"{role}_PROVIDER={role_provider} has no key: set {role}_API_KEY in .env"
+            )
+        if key is not None:
+            keys.setdefault(role_provider, key)
+        return key
+
     subject_provider = _choice(env, "SUBJECT_PROVIDER", Provider, provider)
-    subject_api_key = _secret(env, "SUBJECT_API_KEY")
-    if subject_api_key is None and subject_provider is provider:
-        subject_api_key = api_key
-    if mode is LlmMode.LIVE and subject_api_key is None:
-        raise ConfigError(
-            f"SUBJECT_PROVIDER={subject_provider} differs from LLM_PROVIDER: "
-            "it needs SUBJECT_API_KEY in .env"
-        )
+    subject_api_key = role_key("SUBJECT", subject_provider)
+    vision_provider = _choice(env, "VISION_PROVIDER", Provider, provider)
+    vision_api_key = role_key("VISION", vision_provider)
 
     search_provider = _choice(env, "SEARCH_PROVIDER", SearchProvider, SearchProvider.NONE)
     search_api_key = _secret(env, "SEARCH_API_KEY")
@@ -153,7 +166,10 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
             subject_model=_read(env, "SUBJECT_MODEL")
             or DEFAULT_MODELS[subject_provider]["subject"],
             agent_model=_read(env, "LLM_MODEL") or DEFAULT_MODELS[provider]["agent"],
-            vision_model=_read(env, "VISION_MODEL") or DEFAULT_MODELS[provider]["vision"],
+            vision_provider=vision_provider,
+            vision_api_key=vision_api_key,
+            vision_base_url=_read(env, "VISION_BASE_URL") or BASE_URLS[vision_provider],
+            vision_model=_read(env, "VISION_MODEL") or DEFAULT_MODELS[vision_provider]["vision"],
             spend_cap_usd=_spend_cap(env),
             search_provider=search_provider,
             search_api_key=search_api_key,

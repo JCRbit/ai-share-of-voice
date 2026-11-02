@@ -76,3 +76,5 @@ R5. One live run under 0.50 USD, logged in `runs/`.
   client, `answer()` free text for the subject model), 16 tests, `scripts/ping_llm.py` for a live check.
 - Subject on its own provider (2026-11-02): `SUBJECT_PROVIDER=gemini` + `SUBJECT_API_KEY`;
   agents and vision stay on Groq. Comparing subjects = one run per subject model.
+- Vision provider (2026-11-02): Groq retired llama-4-scout; `VISION_PROVIDER=gemini` reuses the Gemini
+  key. `ping_llm.py --models` lists the models of each provider.

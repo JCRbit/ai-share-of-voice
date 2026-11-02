@@ -1,6 +1,7 @@
 """Check the .env configuration with one tiny call per model role.
 
-Usage: python scripts/ping_llm.py
+Usage: python scripts/ping_llm.py            one call per role
+       python scripts/ping_llm.py --models   list the models each provider offers (free)
 Prints mode, models, tokens and cost. Never prints the key. Costs a fraction of a cent.
 """
 
@@ -23,6 +24,30 @@ class Pong(BaseModel):
     ok: bool
 
 
+def list_models(clients, settings) -> int:
+    """Print the model ids of each provider in use. Listing models costs nothing."""
+    providers = {
+        "agent": settings.provider,
+        "subject": settings.subject_provider,
+        "vision": settings.vision_provider,
+    }
+    seen = set()
+    for role, provider in providers.items():
+        sdk = getattr(clients, role)._sdk
+        if id(sdk) in seen:
+            continue
+        seen.add(id(sdk))
+        try:
+            ids = sorted(model.id for model in sdk.models.list())
+        except Exception as error:  # report and go on with the next provider
+            print(f"FAIL {provider}: {type(error).__name__}: {error}")
+            continue
+        print(f"== {provider} ({len(ids)} models)")
+        for model_id in ids:
+            print(f"   {model_id}")
+    return 0
+
+
 def main() -> int:
     try:
         settings = load_settings()
@@ -38,6 +63,8 @@ def main() -> int:
         return 0
 
     clients = build_clients(settings.model_copy(update={"spend_cap_usd": PING_CAP_USD}))
+    if "--models" in sys.argv[1:]:
+        return list_models(clients, settings)
     checks = [
         ("subject", lambda: clients.subject.answer("Reply with the single word: pong")),
         ("agent", lambda: clients.agent.complete('Return {"ok": true}.', Pong)),
