@@ -38,6 +38,7 @@ class Provider(StrEnum):
 
 class SearchProvider(StrEnum):
     NONE = "none"  # fixture sources only, no network
+    DUCKDUCKGO = "duckduckgo"  # no key needed; unofficial, may rate-limit
     TAVILY = "tavily"
 
 

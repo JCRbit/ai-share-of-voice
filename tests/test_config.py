@@ -86,3 +86,10 @@ def test_the_key_never_appears_in_repr_or_errors():
     with pytest.raises(ConfigError) as error:
         load_settings(live_env(SPEND_CAP_USD="abc"))
     assert FAKE_KEY not in str(error.value)
+
+
+def test_duckduckgo_search_needs_no_key():
+    settings = load_settings({"SEARCH_PROVIDER": "DuckDuckGo"})
+
+    assert settings.search_provider is SearchProvider.DUCKDUCKGO
+    assert settings.search_api_key is None
