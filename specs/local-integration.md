@@ -83,6 +83,16 @@ R10. The user can read a real answer (added 2026-11-03).
     user picks. Tracked brands are highlighted, the analysis of that answer is shown next to it
     (named / recommended per brand), and the text is escaped (it is untrusted model output).
   - Goal: the user sees where "named in 70%" comes from.
+R11. Product review (2026-11-03), as a user and as a PM. Applied now, by impact:
+  - Errors in plain words: a quota, budget or network failure says what happened and what to do;
+    the technical text stays in the log.
+  - Time before starting and progress by round ("round 2 of 3"): a live run takes minutes.
+  - Results say which AI was measured and when: the figures are about one model on one date.
+  - "What you can do now": rule-based actions from the figures (no model writing advice).
+  - A short glossary in Results (named, recommended, margin of error, dated sample).
+  - The draft is shown as formatted text, sanitized: no HTML, no images (tracking pixels).
+  - "My measurements": past runs from `tracking.csv`, reopened from the SQLite checkpoints.
+  Left for later: trend chart over time, PDF export, alerts, more countries.
 R8. (Parked) Discovery-only run for a new client with no known competitors. Needs `Brief` to accept
   fewer than two competitors: schema change, so not in this branch.
 
