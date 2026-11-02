@@ -8,6 +8,7 @@ is tested without a UI; ``app.py`` only draws it.
 
 import csv
 import json
+import random
 import threading
 import time
 from collections.abc import Callable
@@ -29,10 +30,21 @@ from ai_share_of_voice.graph import build_graph, initial_state, new_run_id, run_
 from ai_share_of_voice.guard import guard_nodes
 from ai_share_of_voice.llm_client import build_clients
 from ai_share_of_voice.nodes import NodeDeps
-from ai_share_of_voice.nodes_real import DISCOVERED_FILE_NAME, RealNodeOptions, make_real_nodes
+from ai_share_of_voice.nodes_real import (
+    DISCOVERED_FILE_NAME,
+    PANEL_FILE_NAME,
+    RAW_FOLDER,
+    RealNodeOptions,
+    load_analyzed,
+    load_panel,
+    make_real_nodes,
+)
+from ai_share_of_voice.panel import generate_panel, read_panel_file, write_panel_file
 from ai_share_of_voice.research import RESEARCH_FILE_NAME
+from ai_share_of_voice.schemas.analysis import BrandMention, RawAnswer
 from ai_share_of_voice.schemas.base import Contract
 from ai_share_of_voice.schemas.brief import BrandSpec, Brief
+from ai_share_of_voice.schemas.questions import QuestionPanel
 from ai_share_of_voice.stats.charts import (
     BrandRates,
     PrecisionChartText,
@@ -55,6 +67,7 @@ from ai_share_of_voice.writing import CLIENT_REPORT_FILE_NAME, make_client_repor
 
 Phase = Literal["running", "waiting_approval", "completed", "partial", "rejected", "error"]
 CHECKPOINT_FILE_NAME = "checkpoints.sqlite"
+APPROVED_PANEL_FILE = "approved_questions.csv"  # the user's panel, before the run copies it
 
 
 class BriefForm(Contract):
@@ -112,6 +125,17 @@ class RunView(Contract):
     error: str | None = None
 
 
+@dataclass(frozen=True)
+class AnswerExample:
+    """A real answer of the measured AI, its analysis and the questions to pick from."""
+
+    question_id: str
+    question: str
+    answer: str
+    mentions: tuple[BrandMention, ...]
+    choices: tuple[tuple[str, str], ...]  # (question id, question text)
+
+
 @dataclass
 class ResultsBundle:
     view: ResultsView | None
@@ -161,12 +185,32 @@ class RunController:
 
     # --- start ------------------------------------------------------------------------------
 
-    def start(self, form: BriefForm) -> str:
+    def draft_panel(self, form: BriefForm) -> QuestionPanel:
+        """The questions proposed for review (R9): the demo panel or one generated now.
+
+        Generating costs one agent call, on a small budget of its own: the run's cap starts
+        when the run starts.
+        """
+        brief = form.to_brief(self.settings.spend_cap_usd)
+        if form.panel == "generate":
+            responders, text = demo_responders(brief)
+            clients = self._clients_factory(
+                self.settings, responders=responders, text_responder=text
+            )
+            return generate_panel(brief, clients.agent, form.questions)
+        panel = load_panel(brief.language, self.data_dir)
+        return QuestionPanel(questions=panel.questions[: form.questions])
+
+    def start(self, form: BriefForm, panel: QuestionPanel | None = None) -> str:
+        """Start a run; ``panel`` is the one the user approved, asked in every batch."""
         brief = form.to_brief(self.settings.spend_cap_usd)
         run_id = new_run_id()
         run = _Run(target_half_width=brief.target_half_width)
         with self._lock:
             self._runs[run_id] = run
+        approved = None
+        if panel is not None:
+            approved = write_panel_file(panel, self.runs_dir / run_id / APPROVED_PANEL_FILE)
 
         def work() -> None:
             responders, text = demo_responders(brief)
@@ -186,8 +230,9 @@ class RunController:
                 runs_dir=self.runs_dir,
                 data_dir=self.data_dir,
                 options=RealNodeOptions(
-                    max_questions=form.questions,
-                    generate_panel=form.panel == "generate",
+                    max_questions=None if approved else form.questions,
+                    panel_file=approved,
+                    generate_panel=approved is None and form.panel == "generate",
                     panel_size=form.questions,
                     location=form.location,
                 ),
@@ -271,6 +316,37 @@ class RunController:
         self._launch(run, lambda: run.graph.invoke(Command(resume=decision), run.config))
 
     # --- results ----------------------------------------------------------------------------
+
+    def example_answer(
+        self, run_id: str, question_id: str | None = None, rng: random.Random | None = None
+    ) -> AnswerExample | None:
+        """One real answer of the measured AI with its analysis (R10); random by default."""
+        run_dir = self.runs_dir / run_id
+        panel_path = run_dir / PANEL_FILE_NAME
+        raw = sorted((run_dir / RAW_FOLDER).glob("batch_*.jsonl"))
+        if not panel_path.is_file() or not raw:
+            return None
+        questions = {q.id: q.text for q in read_panel_file(panel_path).questions}
+        answers = [
+            RawAnswer.model_validate_json(line)
+            for line in raw[0].read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        answered = [a for a in answers if a.question_id in questions]
+        if not answered:
+            return None
+        chosen = next((a for a in answered if a.question_id == question_id), None)
+        if chosen is None:
+            chosen = (rng or random.Random()).choice(answered)
+        analyzed = {item.response_id: item for item in load_analyzed(run_dir)}
+        analysis = analyzed.get(chosen.response_id)
+        return AnswerExample(
+            question_id=chosen.question_id,
+            question=questions[chosen.question_id],
+            answer=chosen.text,
+            mentions=analysis.mentions if analysis else (),
+            choices=tuple((a.question_id, questions[a.question_id]) for a in answered),
+        )
 
     def charts(self, run_id: str, lang: str) -> tuple[str | None, str | None]:
         """Paths of the rates and precision charts in ``lang`` (``None`` when not ready)."""

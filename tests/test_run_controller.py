@@ -147,3 +147,56 @@ def test_the_app_charts_are_drawn_in_the_interface_language(controller, lang):
         f"app_precision_{lang}.png"
     )
     assert Path(rates).read_bytes().startswith(b"\x89PNG")
+
+
+# --- question review (R9) and real answer (R10) ---------------------------------------------
+
+from ai_share_of_voice.panel import check_user_panel  # noqa: E402
+
+
+def test_the_proposed_panel_is_the_demo_one_or_a_generated_one(controller):
+    demo = controller.draft_panel(form(questions=10))
+    generated = controller.draft_panel(
+        form(brand="Zara", competitors="Mango, H&M", sector="tiendas de ropa", panel="generate")
+    )
+
+    assert len(demo.questions) == 10 and demo.questions[0].id == "q01"
+    assert len(generated.questions) == 10 and "tiendas de ropa" in generated.questions[0].text
+
+
+def test_a_run_asks_the_panel_the_user_approved(controller, tmp_path):
+    brief_form = form()
+    texts = [f"Pregunta revisada número {index} sobre comida a domicilio" for index in range(1, 6)]
+    panel, problems = check_user_panel([(text, "") for text in texts], brief_form.to_brief(0.5))
+    assert problems == []
+
+    run_id = controller.start(brief_form, panel=panel)
+    view = controller.wait(run_id, timeout=60)
+
+    assert view.phase == "waiting_approval"
+    saved = (tmp_path / "runs" / run_id / "questions.csv").read_text("utf-8")
+    assert "Pregunta revisada número 5" in saved
+    assert any("approved panel" in (event.detail or "") for event in view.events)
+
+
+def test_a_real_answer_can_be_read_with_its_analysis(controller):
+    run_id = controller.start(form())
+    controller.wait(run_id, timeout=60)
+
+    picked = controller.example_answer(run_id, "q03")
+    random_one = controller.example_answer(run_id)
+
+    assert picked.question_id == "q03" and picked.question.startswith("Me acabo de mudar")
+    assert picked.answer and {m.brand for m in picked.mentions} == {
+        "Glovo",
+        "Just Eat",
+        "Uber Eats",
+    }
+    assert random_one is not None and random_one.question_id in {q for q, _ in random_one.choices}
+    assert len(random_one.choices) == 10
+
+
+def test_no_answer_before_sampling(controller):
+    run_id = controller.start(form())
+    # Right after start the thread may not have sampled yet; asking must not fail.
+    controller.example_answer(run_id)

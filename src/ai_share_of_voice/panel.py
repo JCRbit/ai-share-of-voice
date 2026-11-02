@@ -16,6 +16,7 @@ can be reused by later runs of the client and the runs stay comparable.
 
 import csv
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from pydantic import BaseModel, Field, ValidationError
@@ -148,3 +149,60 @@ def read_panel_file(path: Path) -> QuestionPanel:
     with Path(path).open(encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
     return QuestionPanel(questions=tuple(Question.model_validate(row) for row in rows))
+
+
+# --- the user's own panel (R9) --------------------------------------------------------------
+
+MIN_USER_QUESTIONS = 3
+MAX_USER_QUESTIONS = 30
+USER_INTENT = "custom"  # a question the user wrote or changed without an intent
+
+
+@dataclass(frozen=True)
+class PanelProblem:
+    """A problem the interface shows in the user's language. ``row`` is 1-based; 0 = the panel."""
+
+    row: int
+    kind: str  # too_short, too_long, duplicate, names_brand, too_few, too_many
+
+
+def check_user_panel(
+    rows: list[tuple[str, str]], brief: Brief
+) -> tuple[QuestionPanel | None, list[PanelProblem]]:
+    """Check the questions the user reviewed, with the same rules as generated ones.
+
+    Empty rows are ignored. Problems point at their row so the user can fix them; any
+    problem means no panel, so a run never starts on questions that name a brand.
+    """
+    problems: list[PanelProblem] = []
+    seen: set[str] = set()
+    kept: list[tuple[str, str]] = []
+    for row, (raw_text, raw_intent) in enumerate(rows, start=1):
+        text = " ".join(str(raw_text or "").split())
+        if not text:
+            continue
+        key = normalize_brand_name(text)
+        if len(text) < 5:
+            problems.append(PanelProblem(row, "too_short"))
+        elif len(text) > 500:
+            problems.append(PanelProblem(row, "too_long"))
+        elif key in seen:
+            problems.append(PanelProblem(row, "duplicate"))
+        elif _names_a_brand(text, brief):
+            problems.append(PanelProblem(row, "names_brand"))
+        seen.add(key)
+        intent = " ".join(str(raw_intent or "").split()).lower()[:100] or USER_INTENT
+        kept.append((text, intent))
+    if not problems and len(kept) < MIN_USER_QUESTIONS:
+        problems.append(PanelProblem(0, "too_few"))
+    if not problems and len(kept) > MAX_USER_QUESTIONS:
+        problems.append(PanelProblem(0, "too_many"))
+    if problems:
+        return None, problems
+    panel = QuestionPanel(
+        questions=tuple(
+            Question(id=f"q{index:02d}", text=text, intent=intent)
+            for index, (text, intent) in enumerate(kept, start=1)
+        )
+    )
+    return panel, []

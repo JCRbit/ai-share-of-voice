@@ -246,3 +246,52 @@ def test_money_and_question_counts_read_naturally():
         "en", mention=(0.5, 0.3, 0.7), recommendation=None, answers=10, spend_usd=0.09
     )
     assert "en 4 preguntas" in discovered_html("es", rows)
+
+
+# --- real answer example (R10) and question problems (R9) -----------------------------------
+
+from ai_share_of_voice.panel import PanelProblem  # noqa: E402
+from ai_share_of_voice.schemas.analysis import BrandMention  # noqa: E402
+from ai_share_of_voice.ui.components import answer_html, panel_problems_text  # noqa: E402
+from ai_share_of_voice.ui.run_controller import AnswerExample  # noqa: E402
+
+
+def example(text):
+    return AnswerExample(
+        question_id="q01",
+        question="¿Qué app de comida me recomiendas?",
+        answer=text,
+        mentions=(
+            BrandMention(brand="Glovo", mentioned=True, recommended=True, position=1),
+            BrandMention(brand="Just Eat", mentioned=True, recommended=False, position=2),
+            BrandMention(brand="Uber Eats", mentioned=False),
+        ),
+        choices=(("q01", "¿Qué app de comida me recomiendas?"),),
+    )
+
+
+def test_the_answer_highlights_named_brands_and_shows_the_analysis():
+    html = answer_html("es", example("Te recomiendo glovo; también existe Just Eat."))
+
+    assert "<mark>glovo</mark>" in html and "<mark>Just Eat</mark>" in html
+    assert "¿Qué app de comida me recomiendas?" in html
+    assert "La nombra y la recomienda" in html and "No la nombra" in html
+
+
+def test_the_answer_is_escaped_before_highlighting():
+    html = answer_html("es", example("<script>alert(1)</script> Glovo <b>gratis</b>"))
+
+    assert "<script>" not in html and "&lt;script&gt;" in html
+    assert "<b>gratis</b>" not in html
+    assert "<mark>Glovo</mark>" in html
+
+
+def test_no_answer_yet_says_so():
+    assert "aún no" in answer_html("es", None).casefold()
+
+
+def test_question_problems_are_explained_per_row_in_plain_words():
+    text = panel_problems_text("es", [PanelProblem(6, "names_brand"), PanelProblem(0, "too_few")])
+
+    assert "Pregunta 6" in text and "nombra una de las marcas" in text
+    assert "al menos 3 preguntas" in text

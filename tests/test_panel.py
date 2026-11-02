@@ -154,3 +154,55 @@ def test_the_panel_alternates_intents_so_a_cut_keeps_the_mix():
     panel = generate_panel(BRIEF, client, size=10)
 
     assert [question.intent for question in panel.questions[:5]] == list(INTENTS)
+
+
+# --- the user's own panel (R9) --------------------------------------------------------------
+
+from ai_share_of_voice.panel import MAX_USER_QUESTIONS, PanelProblem, check_user_panel  # noqa: E402
+
+
+def rows(*texts, intent=""):
+    return [(text, intent) for text in texts]
+
+
+VALID = [f"¿Dónde compro ropa buena opción {index} en Valencia?" for index in range(1, 6)]
+
+
+def test_a_valid_user_panel_is_numbered_and_keeps_its_intents():
+    panel, problems = check_user_panel([(VALID[0], "price"), *rows(*VALID[1:])], BRIEF)
+
+    assert problems == []
+    assert [question.id for question in panel.questions] == ["q01", "q02", "q03", "q04", "q05"]
+    assert panel.questions[0].intent == "price"
+    assert panel.questions[1].intent == "custom"  # a question the user wrote
+
+
+def test_empty_rows_are_ignored():
+    panel, problems = check_user_panel([*rows(*VALID), ("  ", ""), ("", "price")], BRIEF)
+
+    assert problems == [] and len(panel.questions) == 5
+
+
+def test_each_problem_points_at_its_row():
+    texts = [*VALID, "¿Es buena Zara?", "Hola", VALID[0].upper()]
+
+    panel, problems = check_user_panel(rows(*texts), BRIEF)
+
+    assert panel is None
+    assert problems == [
+        PanelProblem(row=6, kind="names_brand"),
+        PanelProblem(row=7, kind="too_short"),
+        PanelProblem(row=8, kind="duplicate"),
+    ]
+
+
+def test_too_few_or_too_many_questions():
+    _, few = check_user_panel(rows(*VALID[:2]), BRIEF)
+    many = [
+        f"Pregunta de prueba número {index} sobre tiendas"
+        for index in range(MAX_USER_QUESTIONS + 1)
+    ]
+    _, too_many = check_user_panel(rows(*many), BRIEF)
+
+    assert few == [PanelProblem(row=0, kind="too_few")]
+    assert too_many == [PanelProblem(row=0, kind="too_many")]

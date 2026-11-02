@@ -9,11 +9,13 @@ Pure functions from plain data to HTML, so they are tested without a browser. Tw
   light and dark mode.
 """
 
+import re
 from html import escape
 from urllib.parse import urlsplit
 
+from ai_share_of_voice.panel import PanelProblem
 from ai_share_of_voice.ui.i18n import kind, stage, t
-from ai_share_of_voice.ui.run_controller import ResultsBundle, RunView
+from ai_share_of_voice.ui.run_controller import AnswerExample, ResultsBundle, RunView
 
 STAGE_ORDER = (
     "questions",
@@ -116,6 +118,16 @@ APP_CSS = """
   border-radius: 12px; border: 1px solid var(--border-color-primary);
   background: var(--block-background-fill); max-height: 360px; overflow: auto; }
 .sov-list { margin: 6px 0 0 18px; }
+.sov-answer { white-space: pre-wrap; font-size: 14.5px; line-height: 1.6; padding: 14px 16px;
+  border-radius: 12px; border: 1px solid var(--border-color-primary);
+  background: var(--block-background-fill); max-height: 380px; overflow: auto; }
+.sov-answer mark { background: rgba(79,70,229,.18); color: inherit; border-radius: 4px;
+  padding: 0 2px; font-weight: 600; }
+.sov-chips { display:flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.sov-chip { padding: 6px 12px; border-radius: 999px; font-size: 13px;
+  border: 1px solid var(--border-color-primary); }
+.sov-chip.rec { background: rgba(21,128,61,.12); color: var(--sov-ok); }
+.sov-chip.named { background: var(--sov-soft); color: var(--sov-accent); }
 @media (max-width: 760px) {
   .sov-steps, .sov-kpis { grid-template-columns: 1fr 1fr; }
   .sov-hero h1 { font-size: 24px; }
@@ -365,3 +377,48 @@ def results_html(lang: str, bundle: ResultsBundle) -> str:
         + f"<h3>{escape(t(lang, 'by_brand'))}</h3>"
         + comparison_html(lang, bundle.brand, rows)
     )
+
+
+def answer_html(lang: str, example: AnswerExample | None) -> str:
+    """A real answer (untrusted model text): escaped first, then tracked brands highlighted."""
+    if example is None:
+        return f"<p class='sov-muted'>{escape(t(lang, 'example_none'))}</p>"
+    text = escape(example.answer)
+    named = [mention.brand for mention in example.mentions if mention.mentioned]
+    if named:
+        pattern = "|".join(re.escape(escape(name)) for name in sorted(named, key=len, reverse=True))
+        text = re.sub(rf"(?<!\w)({pattern})(?!\w)", r"<mark>\1</mark>", text, flags=re.IGNORECASE)
+    chips = "".join(
+        f'<span class="sov-chip {"rec" if m.recommended else "named" if m.mentioned else ""}">'
+        f"<b>{escape(m.brand)}</b> · "
+        + escape(
+            t(
+                lang,
+                "named_and_recommended"
+                if m.recommended
+                else "named_only"
+                if m.mentioned
+                else "not_named",
+            )
+        )
+        + "</span>"
+        for m in example.mentions
+    )
+    return (
+        f"<p><b>{escape(t(lang, 'example_question'))}:</b> {escape(example.question)}</p>"
+        f"<p><b>{escape(t(lang, 'example_answer'))}:</b></p>"
+        f'<div class="sov-answer">{text}</div>'
+        f"<p style='margin-top:12px'><b>{escape(t(lang, 'example_analysis'))}</b></p>"
+        f'<div class="sov-chips">{chips}</div>'
+    )
+
+
+def panel_problems_text(lang: str, problems: list[PanelProblem]) -> str:
+    """The problems of the user's questions, one line each, in plain words."""
+    lines = []
+    for problem in problems:
+        message = t(lang, f"problem_{problem.kind}")
+        if problem.row:
+            message = t(lang, "problem_row", row=problem.row, problem=message)
+        lines.append(f"- {message}")
+    return "\n".join(lines)
