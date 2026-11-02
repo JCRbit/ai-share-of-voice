@@ -4,11 +4,17 @@ Usage: python scripts/ping_llm.py
 Prints mode, models, tokens and cost. Never prints the key. Costs a fraction of a cent.
 """
 
+import sys
+from pathlib import Path
+
 from pydantic import BaseModel
 
-from ai_share_of_voice.config import ConfigError, LlmMode, load_settings
-from ai_share_of_voice.errors import ToolFailure
-from ai_share_of_voice.llm_client import build_clients
+# The package is not installed: make src/ importable when run as a plain script.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from ai_share_of_voice.config import ConfigError, LlmMode, load_settings  # noqa: E402
+from ai_share_of_voice.errors import ToolFailure  # noqa: E402
+from ai_share_of_voice.llm_client import build_clients  # noqa: E402
 
 PING_CAP_USD = 0.02
 
