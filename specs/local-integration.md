@@ -115,3 +115,7 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
   `max_questions`) and `sampling` (subject answers + mention tool per answer, one file per batch in
   `raw/` and `analyzed/`, up to 10% failed questions tolerated, node cost = shared budget delta).
   Limit: the panel files are Madrid food delivery only; `Brief.sector/city` do not change them.
+- T4 (2026-11-02): real `metrics` node (answers.csv, mention rate + headline interval, real
+  `should_stop`, max-batches cap) and `scripts/real_run.py`. First live run `run-20261102-200942-d347aa`:
+  5 questions x 2 batches, 20 calls, 0 failed, 0.026 USD. Glovo mention 100% [72%, 100%], stop =
+  max batches (half-width 0.139). Answers name a 4th platform: evidence for R7.
