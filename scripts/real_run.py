@@ -1,11 +1,12 @@
 """Run the graph with the real nodes that exist so far (local integration, E).
 
 Usage: python scripts/real_run.py [--questions N] [--batches N] [--language es|en]
-       python scripts/real_run.py --sector "clothing stores" --city Valencia            --brand Zara --competitors "Mango,H&M" --generate
+       python scripts/real_run.py --sector "clothing stores" --city Valencia
+           --brand Zara --competitors "Mango,H&M" --generate
        python scripts/real_run.py --panel runs/<previous run>/questions.csv
-Defaults are cheap on purpose: 5 questions, 2 batches, the demo brief and panel. Uses .env (LLM_MODE=live for real
-calls). Nodes without a real version yet stay simulated. The approval is automatic here,
-because the final action is still the simulated one.
+Defaults are cheap on purpose: 5 questions, 2 batches, the demo brief and panel.
+Uses .env (LLM_MODE=live for real calls). Nodes without a real version yet stay simulated.
+The approval is automatic here, because the final action is still the simulated one.
 """
 
 import argparse
@@ -121,8 +122,7 @@ def main() -> int:
     print(
         f"run_id={run_id} mode={settings.mode} subject={clients.subject.model} "
         f"agent={clients.agent.model} questions={args.questions} batches<={args.batches} "
-        f"cap={settings.spend_cap_usd} USD
-brief: {brief.brand.name} vs "
+        f"cap={settings.spend_cap_usd} USD\nbrief: {brief.brand.name} vs "
         f"{', '.join(c.name for c in brief.competitors)} · {brief.sector} · {brief.city}"
     )
     graph.invoke(initial_state(brief, run_id), config)
