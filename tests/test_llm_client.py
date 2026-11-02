@@ -326,3 +326,42 @@ def test_a_groq_tokens_per_day_limit_is_a_quota():
 
     with pytest.raises(QuotaExhausted):
         client.answer("prompt")
+
+
+# --- images (vision) ------------------------------------------------------------------------
+
+
+def test_complete_with_image_sends_the_png_as_a_data_url(tmp_path):
+    image = tmp_path / "chart.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\nfake")
+    completions = FakeCompletions([json.dumps({"recommends": True, "reason": "bar"})])
+
+    verdict, _ = live(completions).complete_with_image("What does it show?", image, Verdict)
+
+    content = completions.calls[0]["messages"][-1]["content"]
+    assert content[0] == {"type": "text", "text": "What does it show?"}
+    assert content[1]["image_url"]["url"].startswith("data:image/png;base64,")
+    assert verdict.recommends is True
+
+
+def test_the_image_reservation_does_not_count_base64_characters(tmp_path):
+    # A 200 KB image is ~270k base64 characters; counting them would block small caps.
+    image = tmp_path / "big.png"
+    image.write_bytes(b"\x89PNG" + b"0" * 200_000)
+    completions = FakeCompletions([json.dumps({"recommends": True, "reason": "x"})])
+
+    live(completions, cap=0.05).complete_with_image("q", image, Verdict)
+
+    assert len(completions.calls) == 1
+
+
+def test_simulated_client_answers_images_with_its_responder(tmp_path):
+    image = tmp_path / "chart.png"
+    image.write_bytes(b"\x89PNG")
+    client = SimulatedClient(
+        Budget(1.0), responders={Verdict: lambda p: Verdict(recommends=False, reason=p)}
+    )
+
+    verdict, _ = client.complete_with_image("look", image, Verdict)
+
+    assert verdict.reason == "look"

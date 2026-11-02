@@ -164,3 +164,6 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
   Deliveroo / Rappi / PedidosYa (not operating in Spain) and the existence check reports "presence
   online" from generic company pages. Open: the check should require the city or country in the
   evidence, and "Deliveroo Plus" should group with "Deliveroo" (products of untracked brands).
+- T6 (2026-11-03): `chart_vision.py`: the vision model reads our brand chart (image as data URL,
+  fixed token estimate per image); code keeps the reading only if the leader and the client rank
+  match the computed figures; failures and quota skip the step (vision is secondary).

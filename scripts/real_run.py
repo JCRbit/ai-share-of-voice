@@ -125,6 +125,7 @@ def main() -> int:
             location=f"{brief.city}, {args.country}" if args.country else None,
         ),
         sources=lambda: open_stdio_sources(server_env),
+        vision=clients.vision,
     )
     # Audit report, tracking CSV and, after them, the client report in the brief language.
     nodes["finalize"] = make_client_report_finalize(make_finalize_node(log), RUNS_DIR)

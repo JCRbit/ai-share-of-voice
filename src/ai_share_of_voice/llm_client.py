@@ -14,6 +14,7 @@ and its ``Usage``. Three rules hold for every call, live or simulated:
 system message, so the answer looks like what a real user would read.
 """
 
+import base64
 import json
 import re
 import threading
@@ -35,6 +36,7 @@ CHARS_PER_TOKEN_ESTIMATE = 3  # deliberately low: overestimating input keeps the
 SDK_MAX_RETRIES = 3  # the SDK retries 429 and 5xx with backoff, honouring Retry-After
 SDK_TIMEOUT_SECONDS = 60.0
 SIMULATED_COST_PER_CALL_USD = 0.001
+IMAGE_TOKEN_ESTIMATE = 1500  # generous: Gemini bills a chart image at a few hundred tokens
 
 
 @dataclass(frozen=True)
@@ -166,6 +168,13 @@ def _parse[T: BaseModel](content: str | None, schema: type[T]) -> T:
         ) from None
 
 
+def _text_of(content: Any) -> str:
+    """The text of a message: a string, or the text parts of a multimodal message."""
+    if isinstance(content, list):
+        return " ".join(part.get("text", "") for part in content if part.get("type") == "text")
+    return str(content)
+
+
 def _json_instructions(schema: type[BaseModel]) -> str:
     return (
         "Reply with one JSON object only, no prose and no code fences. "
@@ -207,9 +216,30 @@ class LiveClient:
         content, usage = self._call([{"role": "user", "content": prompt}])
         return (content or "").strip(), usage
 
-    def _call(self, messages: list[dict[str, Any]], **extra: Any) -> tuple[str | None, Usage]:
-        chars = sum(len(str(message["content"])) for message in messages)
-        estimated_input = chars // CHARS_PER_TOKEN_ESTIMATE + 1
+    def complete_with_image[T: BaseModel](
+        self, prompt: str, image: Path, schema: type[T]
+    ) -> tuple[T, Usage]:
+        """Ask about a PNG image (the vision model). The image goes as a data URL."""
+        encoded = base64.b64encode(Path(image).read_bytes()).decode("ascii")
+        messages = [
+            {"role": "system", "content": _json_instructions(schema)},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{encoded}"}},
+                ],
+            },
+        ]
+        content, usage = self._call(messages, images=1, response_format={"type": "json_object"})
+        return _parse(content, schema), usage
+
+    def _call(
+        self, messages: list[dict[str, Any]], *, images: int = 0, **extra: Any
+    ) -> tuple[str | None, Usage]:
+        # Count the text only: base64 image data would inflate the estimate ~20 times.
+        chars = sum(len(_text_of(message["content"])) for message in messages)
+        estimated_input = chars // CHARS_PER_TOKEN_ESTIMATE + 1 + images * IMAGE_TOKEN_ESTIMATE
         reservation = self.budget.reserve(self.price.cost(estimated_input, self.max_output_tokens))
         kwargs: dict[str, Any] = {
             "model": self.model,
@@ -271,6 +301,11 @@ class SimulatedClient:
 
     def answer(self, prompt: str) -> tuple[str, Usage]:
         return self.text_responder(prompt), self._charge()
+
+    def complete_with_image[T: BaseModel](
+        self, prompt: str, image: Path, schema: type[T]
+    ) -> tuple[T, Usage]:
+        return self.complete(prompt, schema)
 
     def _charge(self) -> Usage:
         reservation = self.budget.reserve(self.cost_per_call_usd)

@@ -18,6 +18,8 @@ Real so far:
 * ``research`` (when a sources client is given): searches, reads and checks businesses
   through the MCP sources server (``research.py``).
 
+* ``screenshots`` (when a vision client is given): the vision model reads our chart and
+  code keeps the reading only if the figures support it (``chart_vision.py``).
 * ``write_draft`` and ``skeptic``: the code draft rewritten by the agent model, reviewed
   by J's Skeptic over the full run record (``writing.py``).
 
@@ -39,6 +41,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from ai_share_of_voice.chart_vision import make_vision_node
 from ai_share_of_voice.discovery import (
     DiscoveryRecord,
     discover_businesses,
@@ -180,6 +183,7 @@ def make_real_nodes(
     data_dir: Path,
     options: RealNodeOptions | None = None,
     sources: Callable[[], AbstractContextManager[McpSourcesClient]] | None = None,
+    vision: Any = None,
 ) -> dict[str, NodeFn]:
     """Return every node of the graph: real where ready, fake otherwise.
 
@@ -364,6 +368,8 @@ def make_real_nodes(
     )
     if sources is not None:
         nodes["research"] = research_node
+    if vision is not None:
+        nodes["screenshots"] = make_vision_node(deps.event_log, vision, Path(runs_dir))
     return nodes
 
 

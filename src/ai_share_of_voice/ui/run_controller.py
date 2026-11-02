@@ -192,6 +192,7 @@ class RunController:
                     location=form.location,
                 ),
                 sources=self._sources_factory,
+                vision=clients.vision,
             )
             nodes["finalize"] = make_client_report_finalize(
                 make_finalize_node(self._log), self.runs_dir
