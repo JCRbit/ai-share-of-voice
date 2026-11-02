@@ -174,3 +174,7 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
 - Live re-run (2026-11-03): vision tie OK. Groq 400 json_validate_failed on a Skeptic review closed
   the run as partial -> now an invalid answer (the Skeptic keeps its code checks). Skeptic events
   now list the objections for the audit.
+- Capacity (2026-11-03): Groq free tier gives gpt-oss-120b 200k tokens/day; today's runs used it up
+  (QuotaExhausted stopped sampling at once, as designed). Each answer costs ~3.6k agent tokens
+  (judgement + discovery), so a full run (30 questions x 5 rounds = 150 answers) needs ~540k:
+  T9 needs a plan (paid tier, a lighter agent model, or one judgement + discovery call per answer).
