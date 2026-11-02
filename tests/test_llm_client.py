@@ -223,9 +223,32 @@ def test_build_clients_in_simulated_mode_needs_no_key_and_shares_one_budget():
 def test_build_clients_in_live_mode_uses_one_model_per_role():
     settings = load_settings({"LLM_MODE": "live", "LLM_API_KEY": "gsk_fake"})
 
-    clients = build_clients(settings, sdk=fake_sdk(FakeCompletions([])))
+    clients = build_clients(settings, sdk_factory=lambda url, key: fake_sdk(FakeCompletions([])))
 
     assert clients.subject.model == settings.subject_model
     assert clients.agent.model == settings.agent_model
     assert clients.vision.model == settings.vision_model
     assert clients.subject.budget is clients.vision.budget
+
+
+def test_build_clients_puts_the_subject_on_its_own_provider():
+    settings = load_settings(
+        {
+            "LLM_MODE": "live",
+            "LLM_API_KEY": "gsk_fake",
+            "SUBJECT_PROVIDER": "gemini",
+            "SUBJECT_API_KEY": "AIza_fake",
+        }
+    )
+    made = []
+
+    def sdk_factory(base_url, api_key):
+        made.append((base_url, api_key))
+        return fake_sdk(FakeCompletions([]))
+
+    clients = build_clients(settings, sdk_factory=sdk_factory)
+
+    assert clients.subject.model == settings.subject_model
+    assert sorted(made) == sorted(
+        [(settings.base_url, "gsk_fake"), (settings.subject_base_url, "AIza_fake")]
+    )

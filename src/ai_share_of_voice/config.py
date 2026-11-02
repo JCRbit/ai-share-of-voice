@@ -1,6 +1,7 @@
 """Runtime settings read from the environment (``.env`` in development).
 
-One place decides which provider, models, keys and cap a run uses. Two rules:
+One place decides which provider, models, keys and cap a run uses. The measured (subject)
+model may live on another provider than the agents, with its own key. Two rules:
 
 * ``simulated`` is the default, so tests and CI never need a key or spend money.
 * Keys are ``SecretStr``: they never show up in ``repr``, logs or error messages.
@@ -13,14 +14,8 @@ from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 DEFAULT_SPEND_CAP_USD = 2.0
-
-# Groq models change often: check https://console.groq.com/docs/models before a live run.
-GROQ_DEFAULT_MODELS = {
-    "subject": "llama-3.3-70b-versatile",
-    "agent": "openai/gpt-oss-120b",
-    "vision": "meta-llama/llama-4-scout-17b-16e-instruct",
-}
 
 
 class ConfigError(Exception):
@@ -34,6 +29,26 @@ class LlmMode(StrEnum):
 
 class Provider(StrEnum):
     GROQ = "groq"
+    GEMINI = "gemini"
+
+
+# Both expose an OpenAI-compatible chat API, so one client serves them.
+BASE_URLS = {Provider.GROQ: GROQ_BASE_URL, Provider.GEMINI: GEMINI_BASE_URL}
+
+# Model lists change often; check them before a live run:
+# https://console.groq.com/docs/models · https://ai.google.dev/gemini-api/docs/models
+DEFAULT_MODELS = {
+    Provider.GROQ: {
+        "subject": "llama-3.3-70b-versatile",
+        "agent": "openai/gpt-oss-120b",
+        "vision": "meta-llama/llama-4-scout-17b-16e-instruct",
+    },
+    Provider.GEMINI: {
+        "subject": "gemini-2.5-flash",
+        "agent": "gemini-2.5-flash",
+        "vision": "gemini-2.5-flash",
+    },
+}
 
 
 class SearchProvider(StrEnum):
@@ -51,7 +66,10 @@ class Settings(BaseModel):
     provider: Provider
     api_key: SecretStr | None
     base_url: str
-    subject_model: str = Field(min_length=1)  # the model we measure
+    subject_provider: Provider  # the model we measure, possibly on another provider
+    subject_api_key: SecretStr | None
+    subject_base_url: str
+    subject_model: str = Field(min_length=1)
     agent_model: str = Field(min_length=1)  # the model that runs the agents
     vision_model: str = Field(min_length=1)
     spend_cap_usd: float = Field(gt=0)
@@ -108,6 +126,16 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
     if mode is LlmMode.LIVE and api_key is None:
         raise ConfigError("LLM_MODE=live needs LLM_API_KEY in .env")
 
+    subject_provider = _choice(env, "SUBJECT_PROVIDER", Provider, provider)
+    subject_api_key = _secret(env, "SUBJECT_API_KEY")
+    if subject_api_key is None and subject_provider is provider:
+        subject_api_key = api_key
+    if mode is LlmMode.LIVE and subject_api_key is None:
+        raise ConfigError(
+            f"SUBJECT_PROVIDER={subject_provider} differs from LLM_PROVIDER: "
+            "it needs SUBJECT_API_KEY in .env"
+        )
+
     search_provider = _choice(env, "SEARCH_PROVIDER", SearchProvider, SearchProvider.NONE)
     search_api_key = _secret(env, "SEARCH_API_KEY")
     if search_provider is SearchProvider.TAVILY and search_api_key is None:
@@ -118,10 +146,14 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
             mode=mode,
             provider=provider,
             api_key=api_key,
-            base_url=_read(env, "LLM_BASE_URL") or GROQ_BASE_URL,
-            subject_model=_read(env, "SUBJECT_MODEL") or GROQ_DEFAULT_MODELS["subject"],
-            agent_model=_read(env, "LLM_MODEL") or GROQ_DEFAULT_MODELS["agent"],
-            vision_model=_read(env, "VISION_MODEL") or GROQ_DEFAULT_MODELS["vision"],
+            base_url=_read(env, "LLM_BASE_URL") or BASE_URLS[provider],
+            subject_provider=subject_provider,
+            subject_api_key=subject_api_key,
+            subject_base_url=_read(env, "SUBJECT_BASE_URL") or BASE_URLS[subject_provider],
+            subject_model=_read(env, "SUBJECT_MODEL")
+            or DEFAULT_MODELS[subject_provider]["subject"],
+            agent_model=_read(env, "LLM_MODEL") or DEFAULT_MODELS[provider]["agent"],
+            vision_model=_read(env, "VISION_MODEL") or DEFAULT_MODELS[provider]["vision"],
             spend_cap_usd=_spend_cap(env),
             search_provider=search_provider,
             search_api_key=search_api_key,

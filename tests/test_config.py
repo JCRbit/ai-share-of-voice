@@ -1,9 +1,11 @@
 import pytest
 
 from ai_share_of_voice.config import (
+    GEMINI_BASE_URL,
     GROQ_BASE_URL,
     ConfigError,
     LlmMode,
+    Provider,
     SearchProvider,
     load_settings,
 )
@@ -93,3 +95,33 @@ def test_duckduckgo_search_needs_no_key():
 
     assert settings.search_provider is SearchProvider.DUCKDUCKGO
     assert settings.search_api_key is None
+
+
+def test_the_subject_uses_the_agent_provider_and_key_by_default():
+    settings = load_settings(live_env())
+
+    assert settings.subject_provider is Provider.GROQ
+    assert settings.subject_base_url == GROQ_BASE_URL
+    assert settings.subject_api_key.get_secret_value() == FAKE_KEY
+
+
+def test_gemini_as_subject_gets_its_own_url_key_and_default_model():
+    settings = load_settings(live_env(SUBJECT_PROVIDER="gemini", SUBJECT_API_KEY="AIza_fake"))
+
+    assert settings.subject_provider is Provider.GEMINI
+    assert settings.subject_base_url == GEMINI_BASE_URL
+    assert settings.subject_api_key.get_secret_value() == "AIza_fake"
+    assert settings.subject_model.startswith("gemini")
+    assert settings.base_url == GROQ_BASE_URL  # the agents stay on Groq
+
+
+def test_a_subject_on_another_provider_needs_its_own_key():
+    # Reusing the Groq key for Gemini would only fail later, at the first call.
+    with pytest.raises(ConfigError, match="SUBJECT_API_KEY"):
+        load_settings(live_env(SUBJECT_PROVIDER="gemini"))
+
+
+def test_the_subject_key_is_secret_too():
+    settings = load_settings(live_env(SUBJECT_PROVIDER="gemini", SUBJECT_API_KEY="AIza_fake"))
+
+    assert "AIza_fake" not in repr(settings)

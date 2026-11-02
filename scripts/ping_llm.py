@@ -23,7 +23,10 @@ def main() -> int:
     except ConfigError as error:
         print(f"config error: {error}")
         return 1
-    print(f"mode={settings.mode} provider={settings.provider} cap={settings.spend_cap_usd} USD")
+    print(
+        f"mode={settings.mode} agents={settings.provider} "
+        f"subject={settings.subject_provider} cap={settings.spend_cap_usd} USD"
+    )
     if settings.mode is not LlmMode.LIVE:
         print("LLM_MODE is not 'live': nothing to ping.")
         return 0

@@ -74,3 +74,5 @@ R5. One live run under 0.50 USD, logged in `runs/`.
 - T1 (2026-11-02): `config.py` + `tests/test_config.py`, `.env.example` lists every variable.
 - T2 (2026-11-02): `llm_client.py` (shared `Budget`, live Groq client via the OpenAI SDK, simulated
   client, `answer()` free text for the subject model), 16 tests, `scripts/ping_llm.py` for a live check.
+- Subject on its own provider (2026-11-02): `SUBJECT_PROVIDER=gemini` + `SUBJECT_API_KEY`;
+  agents and vision stay on Groq. Comparing subjects = one run per subject model.

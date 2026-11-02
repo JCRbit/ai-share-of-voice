@@ -50,13 +50,17 @@ class Price:
         ) / 1_000_000
 
 
-# Groq on-demand prices; check https://groq.com/pricing before a live run.
+# Paid-tier prices, used by the cap even on free tiers. Check before a live run:
+# https://groq.com/pricing · https://ai.google.dev/gemini-api/docs/pricing
 PRICES: dict[str, Price] = {
     "llama-3.3-70b-versatile": Price(0.59, 0.79),
     "llama-3.1-8b-instant": Price(0.05, 0.08),
     "openai/gpt-oss-120b": Price(0.15, 0.75),
     "openai/gpt-oss-20b": Price(0.075, 0.30),
     "meta-llama/llama-4-scout-17b-16e-instruct": Price(0.11, 0.34),
+    # Gemini 2.5 thinks before answering: thinking tokens are billed as output.
+    "gemini-2.5-flash": Price(0.30, 2.50),
+    "gemini-2.5-flash-lite": Price(0.10, 0.40),
 }
 
 
@@ -261,12 +265,15 @@ class ModelClients:
     budget: Budget
 
 
-def _openai_sdk(settings: Settings) -> Any:
+SdkFactory = Callable[[str, str], Any]
+
+
+def _openai_sdk(base_url: str, api_key: str) -> Any:
     from openai import OpenAI
 
     return OpenAI(
-        api_key=settings.api_key.get_secret_value(),
-        base_url=settings.base_url,
+        api_key=api_key,
+        base_url=base_url,
         max_retries=SDK_MAX_RETRIES,
         timeout=SDK_TIMEOUT_SECONDS,
     )
@@ -276,27 +283,35 @@ def build_clients(
     settings: Settings,
     *,
     usage_log: Path | None = None,
-    sdk: Any = None,
+    sdk_factory: SdkFactory = _openai_sdk,
     responders: Mapping[type[BaseModel], Responder] | None = None,
     text_responder: Callable[[str], str] | None = None,
 ) -> ModelClients:
-    """Build the subject, agent and vision clients for one run."""
+    """Build the subject, agent and vision clients for one run, all on one budget."""
     budget = Budget(settings.spend_cap_usd)
     if settings.mode is LlmMode.SIMULATED:
         simulated = SimulatedClient(budget, responders, text_responder)
         return ModelClients(subject=simulated, agent=simulated, vision=simulated, budget=budget)
 
-    sdk = sdk or _openai_sdk(settings)
+    agent_sdk = sdk_factory(settings.base_url, settings.api_key.get_secret_value())
+    subject_key = settings.subject_api_key.get_secret_value()
+    same_endpoint = (settings.subject_base_url, subject_key) == (
+        settings.base_url,
+        settings.api_key.get_secret_value(),
+    )
+    subject_sdk = (
+        agent_sdk if same_endpoint else sdk_factory(settings.subject_base_url, subject_key)
+    )
 
-    def client(model: str, label: str, temperature: float | None) -> LiveClient:
+    def client(model: str, sdk: Any, label: str, temperature: float | None) -> LiveClient:
         return LiveClient(
             model, budget, sdk, temperature=temperature, usage_log=usage_log, label=label
         )
 
     return ModelClients(
         # Subject keeps the provider's default temperature: we measure what users get.
-        subject=client(settings.subject_model, "subject", None),
-        agent=client(settings.agent_model, "agent", 0.0),
-        vision=client(settings.vision_model, "vision", 0.0),
+        subject=client(settings.subject_model, subject_sdk, "subject", None),
+        agent=client(settings.agent_model, agent_sdk, "agent", 0.0),
+        vision=client(settings.vision_model, agent_sdk, "vision", 0.0),
         budget=budget,
     )
