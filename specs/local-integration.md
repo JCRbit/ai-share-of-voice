@@ -159,3 +159,8 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
   Skeptic checks + model review over the full run record (all brands, discovery) -> revision with
   the objections. `client_report.md` in the brief language after approval; report.md stays the
   English audit. Honest leader sentence (nobody named / ties).
+- T7 live run `run-20261102-224956-7e33a7` (Groq gpt-oss-20b subject, Tavily, Espana): model rewrite
+  accepted, 0 Skeptic objections, client_report.md written, 0.019 USD. Finding: the subject names
+  Deliveroo / Rappi / PedidosYa (not operating in Spain) and the existence check reports "presence
+  online" from generic company pages. Open: the check should require the city or country in the
+  evidence, and "Deliveroo Plus" should group with "Deliveroo" (products of untracked brands).
