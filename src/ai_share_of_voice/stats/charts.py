@@ -6,6 +6,7 @@ input always gives the same PNG and a chart can be reproduced from the run folde
 """
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 import matplotlib
@@ -139,4 +140,146 @@ def convergence_chart(
     axes.legend()
     axes.grid(alpha=0.3)
     figure.tight_layout()
+    return _save(figure, path)
+
+
+# --- charts of the app (texts are passed in, so the UI can translate them) -----------------
+
+Rate = tuple[float, float, float]  # estimate, interval low, interval high
+
+
+@dataclass(frozen=True)
+class BrandRates:
+    """Mention and recommendation rates of one brand, each with its interval."""
+
+    brand: str
+    mention: Rate
+    recommendation: Rate | None = None
+
+
+@dataclass(frozen=True)
+class RatesChartText:
+    title: str
+    mention: str
+    recommendation: str
+    axis: str
+    note: str
+
+
+@dataclass(frozen=True)
+class PrecisionChartText:
+    title: str
+    rounds: str
+    margin: str
+    target: str
+    note: str
+
+
+_CLIENT = ("#4f46e5", "#a5b4fc")  # mention, recommendation
+_OTHERS = ("#64748b", "#cbd5e1")
+
+
+def _errors(rates: Sequence[Rate]) -> list[list[float]]:
+    return [
+        [max(0.0, estimate - low) for estimate, low, _ in rates],
+        [max(0.0, high - estimate) for estimate, _, high in rates],
+    ]
+
+
+def _rates_figure(rows: Sequence[BrandRates], client: str, text: RatesChartText) -> plt.Figure:
+    if not rows:
+        raise ValueError("the chart needs at least one brand")
+    ordered = sorted(rows, key=lambda row: -row.mention[0])
+    positions = list(range(len(ordered)))
+    width = 0.38
+    figure, axes = plt.subplots(figsize=(7.5, 4.2))
+    series_list = (
+        (-width / 2, [row.mention for row in ordered], text.mention),
+        (
+            width / 2,
+            [row.recommendation or (0.0, 0.0, 0.0) for row in ordered],
+            text.recommendation,
+        ),
+    )
+    for tone, (offset, series, label) in enumerate(series_list):
+        colors = [(_CLIENT if row.brand == client else _OTHERS)[tone] for row in ordered]
+        bars = axes.bar(
+            [position + offset for position in positions],
+            [rate[0] for rate in series],
+            width,
+            yerr=_errors(series),
+            capsize=4,
+            color=colors,
+            error_kw={"elinewidth": 1, "ecolor": "#334155"},
+            label=label,
+        )
+        for bar, rate in zip(bars, series, strict=True):
+            axes.text(
+                bar.get_x() + bar.get_width() / 2,
+                0.015,
+                f"{rate[0]:.0%}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                color="white" if rate[0] > 0.12 else "#334155",
+            )
+    axes.set_xticks(positions, [row.brand for row in ordered])
+    for tick, row in zip(axes.get_xticklabels(), ordered, strict=True):
+        tick.set_fontweight("bold" if row.brand == client else "normal")
+    axes.set_ylim(0.0, 1.05)
+    axes.yaxis.set_major_formatter(PercentFormatter(xmax=1.0))
+    axes.set_ylabel(text.axis)
+    axes.set_title(text.title, loc="left", fontweight="bold")
+    axes.grid(axis="y", alpha=0.25)
+    axes.spines[["top", "right"]].set_visible(False)
+    handles = [
+        plt.Rectangle((0, 0), 1, 1, color=_CLIENT[0]),
+        plt.Rectangle((0, 0), 1, 1, color=_CLIENT[1]),
+    ]
+    axes.legend(handles, [text.mention, text.recommendation], frameon=False, loc="upper right")
+    figure.text(0.5, 0.01, text.note, ha="center", fontsize=8, color="#555555")
+    figure.tight_layout(rect=(0, 0.05, 1, 1))
+    return figure
+
+
+def rates_chart(rows: Sequence[BrandRates], client: str, path: Path, text: RatesChartText) -> Path:
+    """Mention next to recommendation for every brand, with margins of error.
+
+    The client brand is drawn in colour and the others in grey, so the reader finds it at
+    once; brands are ordered by mention rate. A missing recommendation is drawn as 0.
+    """
+    path = _check_png(path)
+    return _save(_rates_figure(rows, client, text), path)
+
+
+def precision_chart(
+    history: Sequence[BatchSummary], target_half_width: float, path: Path, text: PrecisionChartText
+) -> Path:
+    """Margin of error (interval half-width) after each round, against the target."""
+    if not history:
+        raise ValueError("the precision chart needs at least one batch")
+    if not 0 < target_half_width <= 0.5:
+        raise ValueError("target_half_width must be in (0, 0.5]")
+    path = _check_png(path)
+    rounds = [summary.batch_index + 1 for summary in history]
+    margins = [summary.half_width for summary in history]
+    figure, axes = plt.subplots(figsize=(7.5, 4.2))
+    axes.fill_between(rounds, margins, color=_CLIENT[1], alpha=0.35)
+    axes.plot(rounds, margins, marker="o", color=_CLIENT[0], linewidth=2, label=text.margin)
+    axes.axhline(target_half_width, color="#15803d", linestyle="--", label=text.target)
+    for x, y in zip(rounds, margins, strict=True):
+        axes.annotate(
+            f"±{y:.0%}", (x, y), textcoords="offset points", xytext=(0, 7), ha="center", fontsize=8
+        )
+    axes.set_xticks(rounds)
+    axes.set_xlabel(text.rounds)
+    axes.set_ylabel(text.margin)
+    axes.yaxis.set_major_formatter(PercentFormatter(xmax=1.0))
+    axes.set_ylim(0.0, max([*margins, target_half_width]) * 1.25)
+    axes.set_title(text.title, loc="left", fontweight="bold")
+    axes.grid(alpha=0.25)
+    axes.spines[["top", "right"]].set_visible(False)
+    axes.legend(frameon=False)
+    figure.text(0.5, 0.01, text.note, ha="center", fontsize=8, color="#555555")
+    figure.tight_layout(rect=(0, 0.05, 1, 1))
     return _save(figure, path)

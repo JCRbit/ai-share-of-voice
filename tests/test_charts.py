@@ -149,3 +149,85 @@ def test_convergence_chart_needs_at_least_one_batch(tmp_path: Path) -> None:
 def test_convergence_chart_rejects_an_invalid_target(target: float, tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="target"):
         convergence_chart(make_history([0.1]), target, tmp_path / "conv.png")
+
+
+# --- app charts with translated texts -------------------------------------------------------
+
+from ai_share_of_voice.stats.charts import (  # noqa: E402
+    BrandRates,
+    PrecisionChartText,
+    RatesChartText,
+    _rates_figure,
+    precision_chart,
+    rates_chart,
+)
+
+RATES_TEXT = RatesChartText(
+    title="Te nombra y te recomienda",
+    mention="Te nombra",
+    recommendation="Te recomienda",
+    axis="% de respuestas",
+    note="Líneas negras: margen de error.",
+)
+PRECISION_TEXT = PrecisionChartText(
+    title="¿Es fiable el resultado?",
+    rounds="Ronda",
+    margin="Margen de error",
+    target="Objetivo",
+    note="Cuanto más baja la línea, más preciso.",
+)
+RATES = [
+    BrandRates("Glovo", (0.4, 0.2, 0.6), (0.3, 0.1, 0.5)),
+    BrandRates("Just Eat", (0.8, 0.6, 1.0), None),
+]
+
+
+def test_rates_chart_orders_brands_and_uses_the_given_texts(tmp_path):
+    figure = _rates_figure(RATES, "Glovo", RATES_TEXT)
+    axes = figure.axes[0]
+
+    assert [tick.get_text() for tick in axes.get_xticklabels()] == ["Just Eat", "Glovo"]
+    assert axes.get_title(loc="left") == "Te nombra y te recomienda"
+    assert [text.get_text() for text in axes.get_legend().get_texts()] == [
+        "Te nombra",
+        "Te recomienda",
+    ]
+
+
+def test_rates_chart_is_reproducible(tmp_path):
+    first = rates_chart(RATES, "Glovo", tmp_path / "a.png", RATES_TEXT)
+    second = rates_chart(RATES, "Glovo", tmp_path / "b.png", RATES_TEXT)
+
+    assert first.read_bytes() == second.read_bytes()
+
+
+def test_rates_chart_needs_a_brand(tmp_path):
+    with pytest.raises(ValueError, match="at least one brand"):
+        rates_chart([], "Glovo", tmp_path / "x.png", RATES_TEXT)
+
+
+def test_precision_chart_writes_a_png(tmp_path):
+    history = [
+        BatchSummary(
+            batch_index=0,
+            n_answers=10,
+            brand_share=0.5,
+            ci_low=0.2,
+            ci_high=0.8,
+            cumulative_spend_usd=0.1,
+        ),
+        BatchSummary(
+            batch_index=1,
+            n_answers=20,
+            brand_share=0.5,
+            ci_low=0.3,
+            ci_high=0.7,
+            cumulative_spend_usd=0.2,
+        ),
+    ]
+
+    path = precision_chart(history, 0.05, tmp_path / "p.png", PRECISION_TEXT)
+
+    assert path.read_bytes().startswith(b"\x89PNG")
+    with pytest.raises(ValueError):
+        precision_chart([], 0.05, tmp_path / "q.png", PRECISION_TEXT)
