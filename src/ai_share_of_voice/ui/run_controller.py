@@ -35,6 +35,7 @@ from ai_share_of_voice.schemas.base import Contract
 from ai_share_of_voice.schemas.brief import BrandSpec, Brief
 from ai_share_of_voice.stats.stopping import should_stop
 from ai_share_of_voice.tools.mcp_sources_client import McpSourcesClient
+from ai_share_of_voice.tools.stats_tool import StatsToolError, StatsToolInput, run_stats
 from ai_share_of_voice.ui.demo_responders import demo_responders
 from ai_share_of_voice.ui.results_tab import ResultsView, build_results_view
 
@@ -100,6 +101,8 @@ class RunView(Contract):
 @dataclass
 class ResultsBundle:
     view: ResultsView | None
+    recommendation: float | None = None  # client brand recommendation rate
+    spend_usd: float = 0.0
     discovered: list[dict[str, str]] = field(default_factory=list)
     research: dict[str, Any] | None = None
     notes: list[str] = field(default_factory=list)
@@ -262,6 +265,10 @@ class RunController:
                 bundle.view = build_results_view(
                     data, self.runs_dir, target_half_width=run.target_half_width
                 )
+                bundle.spend_usd = data.spend_usd
+                bundle.recommendation = _client_rate(
+                    run_id, data.brand, self.runs_dir, "recommendation_rate"
+                )
         ranking = run_dir / DISCOVERED_FILE_NAME
         if ranking.is_file():
             with ranking.open(encoding="utf-8", newline="") as handle:
@@ -270,3 +277,13 @@ class RunController:
         if research.is_file():
             bundle.research = json.loads(research.read_text(encoding="utf-8"))
         return bundle
+
+
+def _client_rate(run_id: str, brand: str, runs_dir: Path, metric: str) -> float | None:
+    """One metric of the client brand from the vetted stats tool (``None`` if unavailable)."""
+    try:
+        result = run_stats(StatsToolInput(run_id=run_id, metric=metric, chart=False), runs_dir)
+    except StatsToolError:
+        return None
+    row = next((row for row in result.rows if row.brand == brand), None)
+    return None if row is None else row.estimate
