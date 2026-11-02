@@ -53,7 +53,8 @@ def test_approving_writes_the_report_and_the_downloads(controller, tmp_path):
     assert (tmp_path / "runs" / run_id / "report.md").is_file()
     results = controller.results(run_id)
     assert results.view is not None and results.view.headline is not None
-    assert len(results.view.downloads) == 2
+    assert len(results.view.downloads) == 3
+    assert results.view.downloads[0].endswith("client_report.md")  # the client's first
     assert results.discovered  # demo answers name an untracked business
     assert (results.brand, results.city) == ("Glovo", "Madrid")
     assert results.recommendation is not None and results.spend_usd > 0

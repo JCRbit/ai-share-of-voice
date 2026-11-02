@@ -154,3 +154,8 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
   12 sectors + "Other" (`ui/catalog.py`); two visible charts in the interface language (named vs
   recommended with margins; margin of error per round) in `stats/charts.py`; own navigation bar
   because Gradio only relabels the open tab; Gradio footer hidden. Checked in the browser ES/EN.
+- T7 (2026-11-02): `writing.py`: code draft from vetted facts -> agent rewrite under strict
+  rules (discarded if it adds an unrecorded figure/source; code draft on any failure) -> J's
+  Skeptic checks + model review over the full run record (all brands, discovery) -> revision with
+  the objections. `client_report.md` in the brief language after approval; report.md stays the
+  English audit. Honest leader sentence (nobody named / ties).

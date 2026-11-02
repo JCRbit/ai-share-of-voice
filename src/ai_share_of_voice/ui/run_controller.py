@@ -51,6 +51,7 @@ from ai_share_of_voice.tools.stats_tool import (
 from ai_share_of_voice.ui.demo_responders import demo_responders
 from ai_share_of_voice.ui.i18n import t
 from ai_share_of_voice.ui.results_tab import ResultsView, build_results_view
+from ai_share_of_voice.writing import CLIENT_REPORT_FILE_NAME, make_client_report_finalize
 
 Phase = Literal["running", "waiting_approval", "completed", "partial", "rejected", "error"]
 CHECKPOINT_FILE_NAME = "checkpoints.sqlite"
@@ -192,7 +193,9 @@ class RunController:
                 ),
                 sources=self._sources_factory,
             )
-            nodes["finalize"] = make_finalize_node(self._log)
+            nodes["finalize"] = make_client_report_finalize(
+                make_finalize_node(self._log), self.runs_dir
+            )
             guarded = guard_nodes(nodes, self._log, fatal=(ApprovalRequired,))
             run.graph = build_graph(guarded, checkpointer=self._checkpointer)
             run.config = run_config(run_id, brief)
@@ -290,6 +293,10 @@ class RunController:
                 bundle.view = build_results_view(
                     data, self.runs_dir, target_half_width=run.target_half_width
                 )
+                client_report = run_dir / CLIENT_REPORT_FILE_NAME
+                if client_report.is_file():  # the client's report first, the audit after
+                    downloads = (str(client_report), *bundle.view.downloads)
+                    bundle.view = bundle.view.model_copy(update={"downloads": downloads})
                 bundle.spend_usd = data.spend_usd
                 bundle.brand, bundle.sector, bundle.city = data.brand, data.sector, data.city
                 bundle.date = f"{data.generated_at:%Y-%m-%d}"

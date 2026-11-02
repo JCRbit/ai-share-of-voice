@@ -18,6 +18,9 @@ Real so far:
 * ``research`` (when a sources client is given): searches, reads and checks businesses
   through the MCP sources server (``research.py``).
 
+* ``write_draft`` and ``skeptic``: the code draft rewritten by the agent model, reviewed
+  by J's Skeptic over the full run record (``writing.py``).
+
 Discovery (R7) runs in ``sampling`` after the mention analysis: every business each answer
 names goes to ``discovered/``. It is secondary, so its failures never drop an answer.
 
@@ -73,6 +76,7 @@ from ai_share_of_voice.tools.mention_tool import (
     extract_mentions,
 )
 from ai_share_of_voice.tools.stats_tool import ANSWERS_FILE_NAME
+from ai_share_of_voice.writing import make_checked_skeptic_node, make_writer_node
 
 RAW_FOLDER = "raw"
 DISCOVERED_FOLDER = "discovered"
@@ -351,7 +355,13 @@ def make_real_nodes(
         )
         return {"sources": found.sources, "events": events}
 
-    nodes.update(questions=questions, sampling=sampling, metrics=metrics)
+    nodes.update(
+        questions=questions,
+        sampling=sampling,
+        metrics=metrics,
+        write_draft=make_writer_node(deps.event_log, agent, Path(runs_dir)),
+        skeptic=make_checked_skeptic_node(deps.event_log, agent, Path(runs_dir)),
+    )
     if sources is not None:
         nodes["research"] = research_node
     return nodes

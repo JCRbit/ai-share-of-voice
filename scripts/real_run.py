@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from langgraph.types import Command  # noqa: E402
 
+from ai_share_of_voice.automation.finalize import ApprovalRequired, make_finalize_node  # noqa: E402
 from ai_share_of_voice.checkpoint import memory_checkpointer  # noqa: E402
 from ai_share_of_voice.config import ConfigError, load_settings  # noqa: E402
 from ai_share_of_voice.event_log import EventLog  # noqa: E402
@@ -31,6 +32,7 @@ from ai_share_of_voice.nodes_real import RealNodeOptions, make_real_nodes  # noq
 from ai_share_of_voice.schemas.brief import BrandSpec, Brief  # noqa: E402
 from ai_share_of_voice.stats.stopping import should_stop  # noqa: E402
 from ai_share_of_voice.tools.mcp_sources_client import open_stdio_sources  # noqa: E402
+from ai_share_of_voice.writing import make_client_report_finalize  # noqa: E402
 
 RUNS_DIR = ROOT / "runs"
 DATA_DIR = ROOT / "data"
@@ -124,7 +126,11 @@ def main() -> int:
         ),
         sources=lambda: open_stdio_sources(server_env),
     )
-    graph = build_graph(guard_nodes(nodes, log), checkpointer=memory_checkpointer())
+    # Audit report, tracking CSV and, after them, the client report in the brief language.
+    nodes["finalize"] = make_client_report_finalize(make_finalize_node(log), RUNS_DIR)
+    graph = build_graph(
+        guard_nodes(nodes, log, fatal=(ApprovalRequired,)), checkpointer=memory_checkpointer()
+    )
     config = run_config(run_id, brief)
 
     print(
