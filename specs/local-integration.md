@@ -131,3 +131,7 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
   gpt-oss-20b on Groq because of the Gemini daily quota): 0.014 USD, 45 untracked businesses.
   Fixes from it: branches grouped ("El Corte Ingles (Centro)"), suggestion needs >= 2 questions,
   intents alternate in the panel. Open: the subject may name stores that do not exist (check in T5).
+- T5a (2026-11-02): `tools/sources_tool.py` (search, check_url, read_source; robots.txt per RFC 9309;
+  visible text only; injection flags; untrusted block), 16 tests, malicious fixture. Live check: the
+  DuckDuckGo HTML endpoint answered the first request with a 202 bot challenge. Not bypassed:
+  D-b needs an official search API (proposal: Tavily, free tier with key).
