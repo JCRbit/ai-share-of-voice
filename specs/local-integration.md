@@ -70,6 +70,19 @@ R7. Discovery of every business named in an answer.
   - Report: untracked businesses ranked by mention rate (share of answers), with Wilson interval and
     number of questions; suggest adding as competitor above a threshold (proposed 10%, decision 7).
   - Local file format, no change to `schemas/`. Upstream later as decision 7 with J.
+R9. The user can review the questions before the run (optional, added 2026-11-03).
+  - "See the questions the AI will be asked" loads the panel (demo, or generated for the brief)
+    in an editable table: the user can edit, delete or add questions. Skipping it runs as before.
+  - The same code checks as for generated questions apply to the user's edits: 5–500 chars, no
+    duplicates, never a tracked brand name or variant. Each problem is shown on its question; a
+    panel with problems does not start. 3 to 30 questions.
+  - The approved panel is saved as `runs/<id>/questions.csv` and asked in every batch, so the run
+    is reproducible and can be repeated with the same questions.
+R10. The user can read a real answer (added 2026-11-03).
+  - Results show one real answer of the measured AI: a random question by default, or the one the
+    user picks. Tracked brands are highlighted, the analysis of that answer is shown next to it
+    (named / recommended per brand), and the text is escaped (it is untrusted model output).
+  - Goal: the user sees where "named in 70%" comes from.
 R8. (Parked) Discovery-only run for a new client with no known competitors. Needs `Brief` to accept
   fewer than two competitors: schema change, so not in this branch.
 
@@ -84,6 +97,8 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
 | T4 | Real metrics node (mention tool + stats tool + `should_stop`) | stop reason comes from D2 |
 | T4b | Brand discovery per answer (R7) + ranking table | hallucinated names dropped in tests |
 | T4c | Question panel generator (R6), saved and reusable | tracked names never in a question |
+| T8b | Question review before the run (R9) | edited panel is the one asked |
+| T8c | Real answer example in Results (R10) | escaped, brands highlighted |
 | T5 | Research node (search + fetch + untrusted wrapping) | malicious fixture test passes |
 | T6 | Vision on our chart | finding returned with `is_hypothesis=True` |
 | T7 | Writer + skeptic + finalize wired | report.md written after approval |
