@@ -4,6 +4,12 @@ from pathlib import Path
 
 import pytest
 
+from ai_share_of_voice.discovery import (
+    BusinessKind,
+    BusinessList,
+    DiscoveryRecord,
+    NamedBusiness,
+)
 from ai_share_of_voice.errors import NoEvidence, ToolFailure
 from ai_share_of_voice.event_log import EventLog
 from ai_share_of_voice.exceptions import BudgetExceeded
@@ -11,6 +17,8 @@ from ai_share_of_voice.llm_client import Budget, SimulatedClient
 from ai_share_of_voice.nodes import NodeDeps, fake_should_stop
 from ai_share_of_voice.nodes_real import (
     ANALYZED_FOLDER,
+    DISCOVERED_FILE_NAME,
+    DISCOVERED_FOLDER,
     RAW_FOLDER,
     RealNodeOptions,
     load_panel,
@@ -60,10 +68,14 @@ def panel(*ids: str) -> QuestionPanel:
     )
 
 
-def build(tmp_path, *, text_responder, budget=None, judge=judge_all, options=None):
+def build(tmp_path, *, text_responder, budget=None, judge=judge_all, options=None, discovery=None):
+    """Without ``discovery`` the agent has no BusinessList responder: discovery fails."""
     budget = budget or Budget(10.0)
     subject = SimulatedClient(budget, text_responder=text_responder, cost_per_call_usd=0.01)
-    agent = SimulatedClient(budget, responders={JudgementBatch: judge}, cost_per_call_usd=0.002)
+    responders = {JudgementBatch: judge}
+    if discovery is not None:
+        responders[BusinessList] = discovery
+    agent = SimulatedClient(budget, responders=responders, cost_per_call_usd=0.002)
     deps = NodeDeps(event_log=EventLog(tmp_path / "runs"), should_stop=fake_should_stop(2))
     nodes = make_real_nodes(
         deps,
@@ -337,3 +349,71 @@ def test_metrics_stops_at_the_max_batches_of_the_brief(tmp_path):
 def test_metrics_without_analyzed_answers_is_no_evidence(tmp_path):
     with pytest.raises(NoEvidence):
         metrics_nodes(tmp_path)["metrics"](state_for(panel(*TEN)))
+
+
+# --- discovery (R7) -------------------------------------------------------------------------
+
+
+def list_bolt(prompt):
+    return BusinessList(
+        businesses=[
+            NamedBusiness(name="Bolt Food", kind=BusinessKind.APP_OR_PLATFORM),
+            NamedBusiness(name="Glovo", kind=BusinessKind.APP_OR_PLATFORM),
+        ]
+    )
+
+
+def test_sampling_stores_what_every_answer_names(tmp_path):
+    nodes, _ = build(tmp_path, text_responder=lambda _: "Glovo o Bolt Food", discovery=list_bolt)
+
+    update = nodes["sampling"](state_for(panel("q1", "q2")))
+
+    path = tmp_path / "runs" / RUN_ID / DISCOVERED_FOLDER / "batch_000.jsonl"
+    records = read_jsonl(path, DiscoveryRecord)
+    assert [record.question_id for record in records] == ["q1", "q2"]
+    assert all(record.ok for record in records)
+    assert {item.name: item.tracked_brand for item in records[0].businesses} == {
+        "Bolt Food": None,
+        "Glovo": "Glovo",
+    }
+    assert "discovery" not in update["events"][-1].result  # nothing failed
+
+
+def test_a_failed_discovery_never_drops_the_answer(tmp_path):
+    # Discovery is secondary: the mention metrics must not lose answers because of it.
+    nodes, _ = build(tmp_path, text_responder=lambda _: "Glovo")  # no discovery responder
+
+    update = nodes["sampling"](state_for(panel("q1", "q2")))
+
+    assert update["n_answers"] == 2
+    assert "discovery failed for 2" in update["events"][-1].result
+    records = read_jsonl(
+        tmp_path / "runs" / RUN_ID / DISCOVERED_FOLDER / "batch_000.jsonl", DiscoveryRecord
+    )
+    assert [record.ok for record in records] == [False, False]
+
+
+def test_discovery_can_be_switched_off(tmp_path):
+    nodes, _ = build(
+        tmp_path,
+        text_responder=lambda _: "Glovo",
+        discovery=list_bolt,
+        options=RealNodeOptions(discover=False),
+    )
+
+    nodes["sampling"](state_for(panel("q1")))
+
+    assert not (tmp_path / "runs" / RUN_ID / DISCOVERED_FOLDER).exists()
+
+
+def test_metrics_writes_the_ranking_of_untracked_businesses(tmp_path):
+    nodes, _ = build(tmp_path, text_responder=lambda _: "Glovo o Bolt Food", discovery=list_bolt)
+    state = state_for(panel("q1", "q2"))
+    nodes["sampling"](state)
+
+    nodes["metrics"](state)
+
+    ranking = (tmp_path / "runs" / RUN_ID / DISCOVERED_FILE_NAME).read_text("utf-8")
+    header, *rows = ranking.splitlines()
+    assert header.startswith("name,kind,rate")
+    assert len(rows) == 1 and rows[0].startswith("Bolt Food,app_or_platform,1.0")

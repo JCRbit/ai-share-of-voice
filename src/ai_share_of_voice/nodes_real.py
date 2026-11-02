@@ -12,6 +12,10 @@ Real so far:
 * ``metrics``: no model. Pools every analyzed batch into ``answers.csv`` (the file the stats
   tool and the results tab read), computes the client's mention rate with the headline
   interval of ``stats/metrics.py`` and asks the stopping rule in ``deps.should_stop``.
+  It also ranks the untracked businesses found by discovery (``discovered_businesses.csv``).
+
+Discovery (R7) runs in ``sampling`` after the mention analysis: every business each answer
+names goes to ``discovered/``. It is secondary, so its failures never drop an answer.
 
 Failures follow the guard (``guard.py``): ``BudgetExceeded`` and ``ToolFailure`` propagate
 and close the run in a partial state. A few failed questions are tolerated and reported,
@@ -26,6 +30,12 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from ai_share_of_voice.discovery import (
+    DiscoveryRecord,
+    discover_businesses,
+    discovery_ranking,
+    ranking_rows,
+)
 from ai_share_of_voice.errors import NoEvidence, ToolFailure
 from ai_share_of_voice.llm_client import Budget
 from ai_share_of_voice.nodes import NodeDeps, NodeFn, _emit, make_fake_nodes
@@ -51,6 +61,8 @@ from ai_share_of_voice.tools.mention_tool import (
 from ai_share_of_voice.tools.stats_tool import ANSWERS_FILE_NAME
 
 RAW_FOLDER = "raw"
+DISCOVERED_FOLDER = "discovered"
+DISCOVERED_FILE_NAME = "discovered_businesses.csv"
 ANALYZED_FOLDER = "analyzed"
 QUESTION_FILES = {"es": "questions_es.csv", "en": "questions.csv"}
 DEFAULT_QUESTION_FILE = "questions.csv"
@@ -63,6 +75,7 @@ class RealNodeOptions:
     max_questions: int | None = None  # ask only the first N questions: cheap live checks
     max_failed_share: float = 0.1  # above this share of failed questions, the batch fails
     extraction_attempts: int = 2
+    discover: bool = True  # one more agent call per answer
 
 
 def load_panel(language: str, data_dir: Path) -> QuestionPanel:
@@ -91,6 +104,23 @@ def load_analyzed(run_dir: Path) -> list[AnalyzedResponse]:
         for line in path.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
+
+
+def _write_ranking(run_dir: Path) -> None:
+    """Rank the untracked businesses of every discovered batch so far."""
+    records = [
+        DiscoveryRecord.model_validate_json(line)
+        for path in sorted((run_dir / DISCOVERED_FOLDER).glob("batch_*.jsonl"))
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    rows = ranking_rows(discovery_ranking(records))
+    if not rows:
+        return
+    with (run_dir / DISCOVERED_FILE_NAME).open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def stop_config(brief: Brief) -> StopConfig:
@@ -159,6 +189,7 @@ def make_real_nodes(
         raw: list[RawAnswer] = []
         analyzed: list[AnalyzedResponse] = []
         failed: list[str] = []
+        discovered: list[DiscoveryRecord] = []
         spent_before = budget.spent_usd
         for question in state["panel"].questions:
             try:
@@ -175,6 +206,8 @@ def make_real_nodes(
                 failed.append(question.id)
                 continue
             raw.append(answer)
+            if options.discover:
+                discovered.append(discover_businesses(answer, brief, agent))
             analyzed.append(analysis)
 
         asked = len(state["panel"].questions)
@@ -185,6 +218,8 @@ def make_real_nodes(
 
         _write_jsonl(batch_file(run_dir, RAW_FOLDER, batch_index), raw)
         _write_jsonl(batch_file(run_dir, ANALYZED_FOLDER, batch_index), analyzed)
+        if options.discover:
+            _write_jsonl(batch_file(run_dir, DISCOVERED_FOLDER, batch_index), discovered)
 
         client_brand = brief.brand.name.casefold()
         brand_mentions = sum(
@@ -195,6 +230,9 @@ def make_real_nodes(
         )
         spend = state.get("spend_usd", 0.0) + (budget.spent_usd - spent_before)
         result = f"batch {batch_index}: {len(analyzed)} answers analyzed"
+        discovery_failed = sum(1 for record in discovered if not record.ok)
+        if discovery_failed:
+            result += f", discovery failed for {discovery_failed}"
         if failed:
             result += f", {len(failed)} failed ({', '.join(failed)})"
         events.append(
@@ -219,6 +257,7 @@ def make_real_nodes(
         brands = [brand.name for brand in (brief.brand, *brief.competitors)]
         frame = responses_to_frame(responses, brands)
         frame.to_csv(run_dir / ANSWERS_FILE_NAME, index=False)  # rewritten whole: idempotent
+        _write_ranking(run_dir)
         table = brand_metrics(frame)
         row = table[
             (table["brand"] == brief.brand.name)
