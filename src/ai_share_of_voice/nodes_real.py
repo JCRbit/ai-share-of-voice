@@ -15,6 +15,9 @@ Real so far:
   interval of ``stats/metrics.py`` and asks the stopping rule in ``deps.should_stop``.
   It also ranks the untracked businesses found by discovery (``discovered_businesses.csv``).
 
+* ``research`` (when a sources client is given): searches, reads and checks businesses
+  through the MCP sources server (``research.py``).
+
 Discovery (R7) runs in ``sampling`` after the mention analysis: every business each answer
 names goes to ``discovered/``. It is secondary, so its failures never drop an answer.
 
@@ -24,6 +27,8 @@ because dropping answers can bias the estimates; too many close the batch.
 """
 
 import csv
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -46,6 +51,7 @@ from ai_share_of_voice.panel import (
     read_panel_file,
     write_panel_file,
 )
+from ai_share_of_voice.research import research
 from ai_share_of_voice.schemas.analysis import AnalyzedResponse, RawAnswer
 from ai_share_of_voice.schemas.brief import Brief
 from ai_share_of_voice.schemas.events import EventStatus
@@ -60,6 +66,7 @@ from ai_share_of_voice.schemas.stopping import (
 )
 from ai_share_of_voice.state import GraphState
 from ai_share_of_voice.stats.metrics import brand_metrics, responses_to_frame
+from ai_share_of_voice.tools.mcp_sources_client import McpSourcesClient
 from ai_share_of_voice.tools.mention_tool import (
     ExtractionError,
     MentionExtractionInput,
@@ -167,6 +174,7 @@ def make_real_nodes(
     runs_dir: Path,
     data_dir: Path,
     options: RealNodeOptions | None = None,
+    sources: Callable[[], AbstractContextManager[McpSourcesClient]] | None = None,
 ) -> dict[str, NodeFn]:
     """Return every node of the graph: real where ready, fake otherwise.
 
@@ -318,7 +326,28 @@ def make_real_nodes(
         )
         return {"history": [summary], "stop_decision": decision, "events": events}
 
+    def research_node(state: GraphState) -> dict[str, Any]:
+        agent_name, tool = "source_researcher", "mcp_sources"
+        events = [emit(state, "research", EventStatus.STARTED, agent=agent_name, tool=tool)]
+        with sources() as client:
+            found = research(state["brief"], Path(runs_dir) / state["run_id"], client)
+        result = (
+            f"{len(found.sources)} sources read, {len(found.skipped)} skipped, "
+            f"{found.flagged} flagged for injection"
+        )
+        if found.checks:
+            missing = sum(not check.found_online for check in found.checks)
+            result += f"; {len(found.checks)} businesses checked, {missing} without evidence online"
+        events.append(
+            emit(
+                state, "research", EventStatus.SUCCEEDED, agent=agent_name, tool=tool, result=result
+            )
+        )
+        return {"sources": found.sources, "events": events}
+
     nodes.update(questions=questions, sampling=sampling, metrics=metrics)
+    if sources is not None:
+        nodes["research"] = research_node
     return nodes
 
 

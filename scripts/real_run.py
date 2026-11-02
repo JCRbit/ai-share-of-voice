@@ -30,6 +30,7 @@ from ai_share_of_voice.nodes import NodeDeps  # noqa: E402
 from ai_share_of_voice.nodes_real import RealNodeOptions, make_real_nodes  # noqa: E402
 from ai_share_of_voice.schemas.brief import BrandSpec, Brief  # noqa: E402
 from ai_share_of_voice.stats.stopping import should_stop  # noqa: E402
+from ai_share_of_voice.tools.mcp_sources_client import open_stdio_sources  # noqa: E402
 
 RUNS_DIR = ROOT / "runs"
 DATA_DIR = ROOT / "data"
@@ -102,6 +103,10 @@ def main() -> int:
         else demo_brief(args.language, settings.spend_cap_usd, args.batches)
     )
     deps = NodeDeps(event_log=log, should_stop=should_stop)
+    # The MCP server only gets what it needs to search: never the model keys.
+    server_env = {"LLM_MODE": "simulated", "SEARCH_PROVIDER": settings.search_provider.value}
+    if settings.search_api_key is not None:
+        server_env["SEARCH_API_KEY"] = settings.search_api_key.get_secret_value()
     nodes = make_real_nodes(
         deps,
         subject=clients.subject,
@@ -115,6 +120,7 @@ def main() -> int:
             generate_panel=args.generate,
             discover=not args.no_discovery,
         ),
+        sources=lambda: open_stdio_sources(server_env),
     )
     graph = build_graph(guard_nodes(nodes, log), checkpointer=memory_checkpointer())
     config = run_config(run_id, brief)
@@ -122,7 +128,8 @@ def main() -> int:
     print(
         f"run_id={run_id} mode={settings.mode} subject={clients.subject.model} "
         f"agent={clients.agent.model} questions={args.questions} batches<={args.batches} "
-        f"cap={settings.spend_cap_usd} USD\nbrief: {brief.brand.name} vs "
+        f"cap={settings.spend_cap_usd} USD search={settings.search_provider}\n"
+        f"brief: {brief.brand.name} vs "
         f"{', '.join(c.name for c in brief.competitors)} · {brief.sector} · {brief.city}"
     )
     graph.invoke(initial_state(brief, run_id), config)
