@@ -9,6 +9,9 @@ Real so far:
 * ``sampling``: asks the measured model every question once and analyzes each answer
   with the mention tool right away. Raw and analyzed answers go to the run folder, one
   file per batch, so a re-run of the node overwrites its batch instead of duplicating it.
+* ``metrics``: no model. Pools every analyzed batch into ``answers.csv`` (the file the stats
+  tool and the results tab read), computes the client's mention rate with the headline
+  interval of ``stats/metrics.py`` and asks the stopping rule in ``deps.should_stop``.
 
 Failures follow the guard (``guard.py``): ``BudgetExceeded`` and ``ToolFailure`` propagate
 and close the run in a partial state. A few failed questions are tolerated and reported,
@@ -23,7 +26,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from ai_share_of_voice.errors import ToolFailure
+from ai_share_of_voice.errors import NoEvidence, ToolFailure
 from ai_share_of_voice.llm_client import Budget
 from ai_share_of_voice.nodes import NodeDeps, NodeFn, _emit, make_fake_nodes
 from ai_share_of_voice.schemas.analysis import AnalyzedResponse, RawAnswer
@@ -31,12 +34,21 @@ from ai_share_of_voice.schemas.brief import Brief
 from ai_share_of_voice.schemas.events import EventStatus
 from ai_share_of_voice.schemas.llm import ModelClient, Usage
 from ai_share_of_voice.schemas.questions import Question, QuestionPanel
+from ai_share_of_voice.schemas.stopping import (
+    BatchSummary,
+    StopConfig,
+    StopDecision,
+    StopReason,
+    SummaryMetric,
+)
 from ai_share_of_voice.state import GraphState
+from ai_share_of_voice.stats.metrics import brand_metrics, responses_to_frame
 from ai_share_of_voice.tools.mention_tool import (
     ExtractionError,
     MentionExtractionInput,
     extract_mentions,
 )
+from ai_share_of_voice.tools.stats_tool import ANSWERS_FILE_NAME
 
 RAW_FOLDER = "raw"
 ANALYZED_FOLDER = "analyzed"
@@ -69,6 +81,26 @@ def _write_jsonl(path: Path, items: list[Any]) -> None:
     """Write the whole batch at once: a re-run replaces it instead of appending."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("".join(item.model_dump_json() + "\n" for item in items), encoding="utf-8")
+
+
+def load_analyzed(run_dir: Path) -> list[AnalyzedResponse]:
+    """Every analyzed answer of the run, batch by batch."""
+    return [
+        AnalyzedResponse.model_validate_json(line)
+        for path in sorted((run_dir / ANALYZED_FOLDER).glob("batch_*.jsonl"))
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def stop_config(brief: Brief) -> StopConfig:
+    """The limits of the brief, as the stopping rule reads them."""
+    return StopConfig(
+        target_half_width=brief.target_half_width,
+        min_batches=min(2, brief.max_batches),
+        max_batches=brief.max_batches,
+        max_spend_usd=brief.spend_cap_usd,
+    )
 
 
 def _analyze(
@@ -175,7 +207,60 @@ def make_real_nodes(
             "events": events,
         }
 
-    nodes.update(questions=questions, sampling=sampling)
+    def metrics(state: GraphState) -> dict[str, Any]:
+        agent_name, tool = "analyst", "stats_tool"
+        events = [emit(state, "metrics", EventStatus.STARTED, agent=agent_name, tool=tool)]
+        brief = state["brief"]
+        run_dir = Path(runs_dir) / state["run_id"]
+        responses = load_analyzed(run_dir)
+        if not responses:
+            raise NoEvidence("no analyzed answers to measure")
+
+        brands = [brand.name for brand in (brief.brand, *brief.competitors)]
+        frame = responses_to_frame(responses, brands)
+        frame.to_csv(run_dir / ANSWERS_FILE_NAME, index=False)  # rewritten whole: idempotent
+        table = brand_metrics(frame)
+        row = table[
+            (table["brand"] == brief.brand.name)
+            & (table["metric"] == SummaryMetric.MENTION_RATE.value)
+        ].iloc[0]
+
+        history = state.get("history", [])
+        summary = BatchSummary(
+            batch_index=len(history),
+            n_answers=len(responses),
+            brand_share=float(row["estimate"]),
+            ci_low=float(row["ci_low"]),
+            ci_high=float(row["ci_high"]),
+            cumulative_spend_usd=state.get("spend_usd", 0.0),
+            n_questions=int(row["n_questions"]),
+        )
+        decision = deps.should_stop([*history, summary], stop_config(brief))
+        if not decision.stop and len(history) + 1 >= brief.max_batches:
+            decision = StopDecision(
+                stop=True,
+                reason=StopReason.MAX_BATCHES,
+                explanation=f"Hard cap of {brief.max_batches} batches reached",
+            )
+        result = (
+            f"{brief.brand.name} mention rate {summary.brand_share:.0%} "
+            f"[{summary.ci_low:.0%}, {summary.ci_high:.0%}], "
+            f"{summary.n_answers} answers, {summary.n_questions} questions"
+        )
+        events.append(
+            emit(
+                state,
+                "metrics",
+                EventStatus.SUCCEEDED,
+                agent=agent_name,
+                tool=tool,
+                result=result,
+                reason=decision.explanation,
+            )
+        )
+        return {"history": [summary], "stop_decision": decision, "events": events}
+
+    nodes.update(questions=questions, sampling=sampling, metrics=metrics)
     return nodes
 
 

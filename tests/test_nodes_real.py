@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from ai_share_of_voice.errors import ToolFailure
+from ai_share_of_voice.errors import NoEvidence, ToolFailure
 from ai_share_of_voice.event_log import EventLog
 from ai_share_of_voice.exceptions import BudgetExceeded
 from ai_share_of_voice.llm_client import Budget, SimulatedClient
@@ -16,10 +16,14 @@ from ai_share_of_voice.nodes_real import (
     load_panel,
     make_real_nodes,
 )
-from ai_share_of_voice.schemas.analysis import AnalyzedResponse, RawAnswer
+from ai_share_of_voice.schemas.analysis import AnalyzedResponse, BrandMention, RawAnswer
 from ai_share_of_voice.schemas.brief import BrandSpec, Brief
 from ai_share_of_voice.schemas.questions import Question, QuestionPanel
+from ai_share_of_voice.schemas.stopping import StopDecision, StopReason
+from ai_share_of_voice.stats.metrics import load_answers, wilson_interval
+from ai_share_of_voice.stats.stopping import should_stop as real_should_stop
 from ai_share_of_voice.tools.mention_tool import BrandJudgement, JudgementBatch
+from ai_share_of_voice.tools.stats_tool import ANSWERS_FILE_NAME, StatsToolInput, run_stats
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 RUN_ID = "run-test"
@@ -212,3 +216,124 @@ def test_an_exhausted_budget_stops_sampling(tmp_path):
 
     with pytest.raises(BudgetExceeded):
         nodes["sampling"](state_for(panel("q1", "q2")))
+
+
+# --- metrics --------------------------------------------------------------------------------
+
+
+def write_analyzed(tmp_path, batch_index, mentioned_by_question):
+    """Store one analyzed batch: question id -> whether Glovo is mentioned."""
+    items = []
+    for qid, mentioned in mentioned_by_question.items():
+        items.append(
+            AnalyzedResponse(
+                response_id=f"b{batch_index:03d}-{qid}",
+                question_id=qid,
+                batch_index=batch_index,
+                mentions=(
+                    BrandMention(
+                        brand="Glovo",
+                        mentioned=mentioned,
+                        recommended=mentioned,
+                        position=1 if mentioned else None,
+                    ),
+                    BrandMention(brand="Just Eat", mentioned=False),
+                    BrandMention(brand="Uber Eats", mentioned=False),
+                ),
+            )
+        )
+    path = tmp_path / "runs" / RUN_ID / ANALYZED_FOLDER / f"batch_{batch_index:03d}.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("".join(item.model_dump_json() + "\n" for item in items), "utf-8")
+
+
+def metrics_nodes(tmp_path, should_stop=None):
+    budget = Budget(10.0)
+    client = SimulatedClient(budget)
+    deps = NodeDeps(
+        event_log=EventLog(tmp_path / "runs"),
+        should_stop=should_stop or real_should_stop,
+    )
+    return make_real_nodes(
+        deps,
+        subject=client,
+        agent=client,
+        budget=budget,
+        runs_dir=tmp_path / "runs",
+        data_dir=DATA_DIR,
+    )
+
+
+TEN = [f"q{index:02d}" for index in range(1, 11)]
+
+
+def test_metrics_writes_answers_csv_that_the_stats_tool_can_read(tmp_path):
+    write_analyzed(tmp_path, 0, {qid: qid in TEN[:4] for qid in TEN})
+
+    metrics_nodes(tmp_path)["metrics"](state_for(panel(*TEN), spend_usd=0.1))
+
+    answers = load_answers(tmp_path / "runs" / RUN_ID / ANSWERS_FILE_NAME)
+    assert len(answers) == 10 * 3  # one row per answer and tracked brand
+    result = run_stats(StatsToolInput(run_id=RUN_ID, chart=False), tmp_path / "runs")
+    assert {row.brand for row in result.rows} == {"Glovo", "Just Eat", "Uber Eats"}
+
+
+def test_metrics_summarizes_the_client_mention_rate_with_its_interval(tmp_path):
+    write_analyzed(tmp_path, 0, {qid: qid in TEN[:4] for qid in TEN})
+
+    update = metrics_nodes(tmp_path)["metrics"](state_for(panel(*TEN), spend_usd=0.1))
+
+    (summary,) = update["history"]
+    assert summary.batch_index == 0
+    assert summary.n_answers == 10
+    assert summary.n_questions == 10
+    assert summary.brand_share == pytest.approx(0.4)
+    assert summary.ci_low < 0.4 < summary.ci_high
+    # The headline interval is never narrower than Wilson alone.
+    wilson_low, wilson_high = wilson_interval(4, 10)
+    assert summary.ci_low <= wilson_low + 1e-9 and summary.ci_high >= wilson_high - 1e-9
+    assert summary.cumulative_spend_usd == pytest.approx(0.1)
+
+
+def test_metrics_pools_every_batch_so_far(tmp_path):
+    write_analyzed(tmp_path, 0, {qid: qid in TEN[:4] for qid in TEN})
+    write_analyzed(tmp_path, 1, {qid: qid in TEN[:6] for qid in TEN})
+    previous = metrics_nodes(tmp_path)["metrics"](state_for(panel(*TEN)))["history"]
+
+    update = metrics_nodes(tmp_path)["metrics"](state_for(panel(*TEN), history=previous))
+
+    (summary,) = update["history"]
+    assert summary.batch_index == 1
+    assert summary.n_answers == 20
+    assert summary.n_questions == 10  # answers to one question stay one cluster
+    assert summary.brand_share == pytest.approx(0.5)
+
+
+def test_metrics_asks_the_real_stopping_rule(tmp_path):
+    write_analyzed(tmp_path, 0, {qid: qid in TEN[:4] for qid in TEN})
+
+    update = metrics_nodes(tmp_path)["metrics"](state_for(panel(*TEN)))
+
+    decision = update["stop_decision"]
+    assert decision.stop is False  # one batch is below min_batches
+    assert decision.reason is StopReason.CONTINUE
+
+
+def test_metrics_stops_at_the_max_batches_of_the_brief(tmp_path):
+    def never_stop(history, config):
+        return StopDecision(stop=False, reason=StopReason.CONTINUE, explanation="more")
+
+    for batch_index in range(3):  # make_brief() has max_batches=3
+        write_analyzed(tmp_path, batch_index, {qid: True for qid in TEN})
+    nodes = metrics_nodes(tmp_path, should_stop=never_stop)
+    history = []
+    for _ in range(3):
+        update = nodes["metrics"](state_for(panel(*TEN), history=history))
+        history = [*history, *update["history"]]
+
+    assert update["stop_decision"].reason is StopReason.MAX_BATCHES
+
+
+def test_metrics_without_analyzed_answers_is_no_evidence(tmp_path):
+    with pytest.raises(NoEvidence):
+        metrics_nodes(tmp_path)["metrics"](state_for(panel(*TEN)))
