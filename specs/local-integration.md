@@ -139,3 +139,7 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
   (`tools/mcp_sources_client.py`) + `research.py` node; Tavily as search (D-b decided). Live run
   `run-20261102-210952-e36ca1`: 4 sources read, 0 injection flags, El Corte Ingles / Primark / Bershka found online.
   3 of 4 sources were Valencia, California: added `location` ("Valencia, Espana", `--country`).
+- T8 (2026-11-02): `app.py` (Gradio 6.30: Brief, Activity + approval, Results) over
+  `ui/run_controller.py` (background thread, SQLite checkpointer, real interrupt/resume, real
+  `finalize` from J writes report.md + tracking CSV). `python app.py --simulated` = free demo.
+  Checked in the browser: start -> approval pause -> approve -> results with downloads.
