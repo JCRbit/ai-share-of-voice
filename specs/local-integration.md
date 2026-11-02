@@ -80,3 +80,7 @@ R5. One live run under 0.50 USD, logged in `runs/`.
   key. `ping_llm.py --models` lists the models of each provider.
 - Gemini model (2026-11-02): subject and vision on pinned `gemini-3.8-flash` (free tier; paid 0.75/3.75
   per 1M until 2026-12-31, doubles in 2027). `gemini-2.5-flash` is deprecated and reroutes on 2026-12-01.
+- T3 (2026-11-02): `nodes_real.py` with real `questions` (panel file by language, optional
+  `max_questions`) and `sampling` (subject answers + mention tool per answer, one file per batch in
+  `raw/` and `analyzed/`, up to 10% failed questions tolerated, node cost = shared budget delta).
+  Limit: the panel files are Madrid food delivery only; `Brief.sector/city` do not change them.
