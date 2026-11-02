@@ -321,3 +321,25 @@ def test_no_client_report_when_the_finalize_fails(tmp_path):
     with pytest.raises(RuntimeError):
         make_client_report_finalize(finalize, tmp_path / "runs")(state)
     assert not (run_dir / CLIENT_REPORT_FILE_NAME).exists()
+
+
+def test_the_skeptic_model_gets_the_run_facts_and_the_method_rule(tmp_path):
+    # Found live: without them it called "only 5 questions were used" unverifiable.
+    from ai_share_of_voice.agents.skeptic import SkepticReview
+
+    state, _ = finished_state(tmp_path)
+    state["draft"] = "Solo se usaron 10 preguntas."
+    prompts = []
+
+    def review(prompt):
+        prompts.append(prompt)
+        return SkepticReview()
+
+    client = SimulatedClient(Budget(1.0), responders={SkepticReview: review})
+    make_checked_skeptic_node(EventLog(tmp_path / "runs"), client, tmp_path / "runs")(state)
+
+    prompt = prompts[0]
+    assert "Recorded run facts" in prompt and "questions: 10" in prompt
+    assert "stop reason" in prompt.casefold()
+    assert "describe the method" in prompt
+    assert prompt.index("Recorded run facts") < prompt.index("<draft>")

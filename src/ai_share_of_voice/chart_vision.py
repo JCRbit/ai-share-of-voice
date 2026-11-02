@@ -12,6 +12,7 @@ Vision is secondary: a failed call or an exhausted quota (Gemini free tier) skip
 and the run goes on. ``BudgetExceeded`` still stops the run, like everywhere else.
 """
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +72,22 @@ def _ranks(rows: list[BrandRates]) -> dict[str, int]:
     }
 
 
+_NAME_SEPARATORS = re.compile(r"\s*(?:,|;|/|&|\band\b|\by\b)\s*", re.IGNORECASE)
+
+
+def reading_agrees(answer: ChartReading, rows: list[BrandRates], client: str) -> bool:
+    """Whether the reading matches the figures. A tie may be read as several leaders
+    ("Glovo, Just Eat"): every name read must be a leader, and the client's rank right."""
+    ranks = _ranks(rows)
+    named = [
+        normalize_brand_name(part)
+        for part in _NAME_SEPARATORS.split(answer.highest_brand)
+        if part.strip()
+    ]
+    leaders_ok = bool(named) and all(ranks.get(name) == 1 for name in named)
+    return leaders_ok and ranks.get(normalize_brand_name(client)) == answer.client_rank
+
+
 def make_vision_node(event_log: EventLog, client: Any, runs_dir: Path) -> NodeFn:
     def screenshots(state: GraphState) -> dict[str, Any]:
         def event(status: EventStatus, result: str | None = None) -> GraphEvent:
@@ -103,13 +120,7 @@ def make_vision_node(event_log: EventLog, client: Any, runs_dir: Path) -> NodeFn
             return {"findings": [], "events": events}
 
         spend = state.get("spend_usd", 0.0) + usage.cost_usd
-        ranks = _ranks(rows)
-        top = normalize_brand_name(answer.highest_brand)
-        consistent = (
-            ranks.get(top) == 1
-            and ranks.get(normalize_brand_name(facts.brand)) == answer.client_rank
-        )
-        if not consistent:
+        if not reading_agrees(answer, rows, facts.brand):
             result = (
                 f"reading discarded: says {answer.highest_brand} leads and the client is "
                 f"#{answer.client_rank}, which the computed figures do not support"

@@ -167,3 +167,7 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
 - T6 (2026-11-03): `chart_vision.py`: the vision model reads our brand chart (image as data URL,
   fixed token estimate per image); code keeps the reading only if the leader and the client rank
   match the computed figures; failures and quota skip the step (vision is secondary).
+- T6/T7 live check (2026-11-03): vision call OK (gemini-3.6-flash, 1442 input tokens) but a correct
+  tie reading was discarded -> ties accepted. The Skeptic model raised 3-4 false objections per
+  round (questions count, stop reason, method sentences) -> its prompt now gets the run facts and
+  a rule that method statements need no source.

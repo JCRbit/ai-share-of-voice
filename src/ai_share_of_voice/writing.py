@@ -448,6 +448,28 @@ def make_writer_node(event_log: EventLog, client: ModelClient, runs_dir: Path) -
 # --- skeptic with the full record -----------------------------------------------------------
 
 
+def _with_run_facts(prompt: str, state: GraphState) -> str:
+    """Add what J's prompt does not carry: the run facts and a rule for method statements.
+
+    Without them, a live review called "only 5 questions were used" unverifiable, and a
+    sentence describing the method an unsourced claim.
+    """
+    history = state.get("history", [])
+    decision = state.get("stop_decision")
+    last = history[-1] if history else None
+    facts = (
+        "Recorded run facts: "
+        f"questions: {last.n_questions if last else 'unknown'}; "
+        f"answers: {last.n_answers if last else 'unknown'}; "
+        f"rounds: {len(history)}; "
+        f"stop reason: {decision.reason.value if decision else 'unknown'}.\n"
+        "Sentences that describe the method or its limits (how mentions and "
+        "recommendations are measured, what the sample is not) are not claims about "
+        "brands and need no source: do not object to them.\n\n"
+    )
+    return prompt.replace("<draft>", facts + "<draft>", 1)
+
+
 def make_checked_skeptic_node(
     event_log: EventLog,
     client: ModelClient | None,
@@ -470,7 +492,8 @@ def make_checked_skeptic_node(
         from_code, from_model, cost, skipped = len(found), 0, 0.0, False
         if client is not None and draft.strip():
             try:
-                review, usage = client.complete(build_skeptic_prompt(draft, record), SkepticReview)
+                prompt = _with_run_facts(build_skeptic_prompt(draft, record), state)
+                review, usage = client.complete(prompt, SkepticReview)
             except ValueError:
                 skipped = True  # an invalid answer must not discard the code findings
             else:

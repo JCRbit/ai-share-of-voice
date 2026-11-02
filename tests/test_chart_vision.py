@@ -83,3 +83,21 @@ def test_an_exhausted_budget_still_stops_the_run(tmp_path):
 
     with pytest.raises(BudgetExceeded):
         node_with(tmp_path, lambda prompt: reading("Just Eat", 2), budget=Budget(0.0001))(state)
+
+
+def test_a_tie_read_as_several_leaders_is_accepted(tmp_path):
+    # Found live: all brands at 100%; the model named the three of them as highest.
+    state, _ = finished_state(tmp_path)
+    from ai_share_of_voice import chart_vision
+
+    rows = [
+        chart_vision.BrandRates("Glovo", (1.0, 0.7, 1.0)),
+        chart_vision.BrandRates("Just Eat", (1.0, 0.7, 1.0)),
+        chart_vision.BrandRates("Uber Eats", (0.4, 0.2, 0.6)),
+    ]
+
+    assert chart_vision.reading_agrees(reading("Glovo, Just Eat", 1), rows, "Glovo")
+    assert chart_vision.reading_agrees(reading("Glovo and Just Eat", 1), rows, "Glovo")
+    assert chart_vision.reading_agrees(reading("Just Eat y Glovo", 1), rows, "Glovo")
+    assert not chart_vision.reading_agrees(reading("Glovo, Uber Eats", 1), rows, "Glovo")
+    assert not chart_vision.reading_agrees(reading("Glovo", 2), rows, "Glovo")
