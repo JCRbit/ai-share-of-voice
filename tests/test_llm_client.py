@@ -365,3 +365,27 @@ def test_simulated_client_answers_images_with_its_responder(tmp_path):
     verdict, _ = client.complete_with_image("look", image, Verdict)
 
     assert verdict.reason == "look"
+
+
+class FakeBadRequest(Exception):
+    """Mimics openai.BadRequestError from Groq when its JSON mode rejects the model output."""
+
+    status_code = 400
+
+
+def test_a_json_validation_rejection_is_an_invalid_answer_not_a_tool_failure():
+    # Found live: Groq answered 400 json_validate_failed; treating it as a tool failure closed
+    # the whole run, while the Skeptic only needed to skip its model review.
+    error = FakeBadRequest("Error code: 400 - {'code': 'json_validate_failed'}")
+    client = live(FakeCompletions([], error=error))
+
+    with pytest.raises(InvalidModelResponse):
+        client.complete("prompt", Verdict)
+    assert client.budget.spent_usd > 0  # the call may have been billed
+
+
+def test_other_bad_requests_stay_tool_failures():
+    client = live(FakeCompletions([], error=FakeBadRequest("Error code: 400 - model not found")))
+
+    with pytest.raises(ToolFailure):
+        client.complete("prompt", Verdict)

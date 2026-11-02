@@ -343,3 +343,13 @@ def test_the_skeptic_model_gets_the_run_facts_and_the_method_rule(tmp_path):
     assert "stop reason" in prompt.casefold()
     assert "describe the method" in prompt
     assert prompt.index("Recorded run facts") < prompt.index("<draft>")
+
+
+def test_the_skeptic_event_lists_its_objections_for_the_audit(tmp_path):
+    state, _ = finished_state(tmp_path)
+    state["draft"] = "Glovo tiene el 43% de la cuota de mercado."
+    node = make_checked_skeptic_node(EventLog(tmp_path / "runs"), None, tmp_path / "runs")
+
+    result = node(state)["events"][-1].result
+
+    assert "unrecorded_figure" in result and "market_share_claim" in result

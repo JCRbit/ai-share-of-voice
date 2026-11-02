@@ -94,6 +94,11 @@ class QuotaExhausted(ToolFailure):
 _QUOTA_HINTS = ("per day", "quota")  # not "billing": Groq links it on per-minute limits
 
 
+def _is_rejected_json(error: Exception) -> bool:
+    """Groq answers 400 json_validate_failed when the model's JSON is invalid."""
+    return getattr(error, "status_code", None) == 400 and "json_validate_failed" in str(error)
+
+
 def _is_quota_error(error: Exception) -> bool:
     text = str(error).casefold()
     return getattr(error, "status_code", None) == 429 and any(hint in text for hint in _QUOTA_HINTS)
@@ -256,6 +261,9 @@ class LiveClient:
             usage = self._usage(estimated_input, 0)
             self.budget.settle(reservation, usage.cost_usd)
             self._log.write(usage, ok=False, error=error)
+            if _is_rejected_json(error):
+                # The provider refused the model's output, not the request: an invalid answer.
+                raise InvalidModelResponse(f"provider rejected the JSON answer: {error}") from None
             failure = QuotaExhausted if _is_quota_error(error) else ToolFailure
             raise failure(TOOL_NAME, f"{type(error).__name__}: {error}") from None
 

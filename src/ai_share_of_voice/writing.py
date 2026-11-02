@@ -509,6 +509,8 @@ def make_checked_skeptic_node(
         result = f"{len(kept)} objections kept ({from_code} from code, {from_model} from the model)"
         if skipped:
             result += "; model review skipped: invalid answer"
+        if kept:  # what was objected, for the audit trail (the full list goes to the state)
+            result += ": " + " | ".join(item.render()[:160] for item in kept[:5])
         done = _event(
             state,
             "skeptic",

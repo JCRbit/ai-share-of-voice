@@ -171,3 +171,6 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
   tie reading was discarded -> ties accepted. The Skeptic model raised 3-4 false objections per
   round (questions count, stop reason, method sentences) -> its prompt now gets the run facts and
   a rule that method statements need no source.
+- Live re-run (2026-11-03): vision tie OK. Groq 400 json_validate_failed on a Skeptic review closed
+  the run as partial -> now an invalid answer (the Skeptic keeps its code checks). Skeptic events
+  now list the objections for the audit.
