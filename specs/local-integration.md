@@ -122,3 +122,8 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
 - T4b (2026-11-02): `discovery.py` + wiring. Second live run `run-20261102-202419-3f9e18` closed
   partial: Gemini free tier allows only 20 requests/day for gemini-3.6-flash (429, quota). Fix:
   `QuotaExhausted` stops sampling at once; usage log records error class and HTTP status.
+- T4c (2026-11-02): `panel.py` + `questions` node sources (approved file > generated > demo),
+  panel always saved. Live check `run-20261102-203058-b96853` (clothing, Valencia, Zara; subject
+  gpt-oss-20b on Groq because of the Gemini daily quota): 0.014 USD, 45 untracked businesses.
+  Fixes from it: branches grouped ("El Corte Ingles (Centro)"), suggestion needs >= 2 questions,
+  intents alternate in the panel. Open: the subject may name stores that do not exist (check in T5).

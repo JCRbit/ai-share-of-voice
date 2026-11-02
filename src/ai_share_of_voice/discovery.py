@@ -117,6 +117,27 @@ def _appears(key: str, haystack: str) -> bool:
     return re.search(rf"(?<!\w){re.escape(key)}(?!\w)", haystack) is not None
 
 
+_PARENTHESES = re.compile(r"\s*\([^)]*\)")
+
+
+def _clean_name(name: str, city: str) -> str:
+    """Drop branch qualifiers: "(Centro)" and a trailing city, if two words or more remain.
+
+    "El Corte Inglés (Centro)" and "El Corte Inglés Valencia" are one business; splitting
+    them would spread its mentions over several rows and underestimate its rate.
+    """
+    clean = " ".join(_PARENTHESES.sub(" ", name).split())
+    words = clean.split()
+    city_words = city.split()
+    if (
+        city_words
+        and len(words) - len(city_words) >= 2
+        and normalize_brand_name(" ".join(words[-len(city_words) :])) == normalize_brand_name(city)
+    ):
+        clean = " ".join(words[: -len(city_words)])
+    return clean.strip(" -,.")
+
+
 def _tracked_owner(key: str, brief: Brief) -> str | None:
     """The tracked brand whose name or variant appears inside ``key``, longest name first."""
     candidates = [
@@ -156,10 +177,10 @@ def discover_businesses(
     kept: dict[str, DiscoveredBusiness] = {}
     dropped: list[str] = []
     for item in listed.businesses:
-        name = " ".join(item.name.split())
+        name = _clean_name(item.name, brief.city)
         key = normalize_brand_name(name)
         if not key or not _appears(key, haystack):
-            dropped.append(name)
+            dropped.append(item.name)
             continue
         kept.setdefault(
             key,
@@ -180,7 +201,8 @@ def discovery_ranking(
 
     The denominator is the answers whose discovery succeeded. Each answer counts a
     business once. The interval is the hull of Wilson and the question-level bootstrap,
-    as for the tracked brands, because answers to one question are correlated.
+    as for the tracked brands, because answers to one question are correlated. A business
+    is suggested as a competitor only above the threshold and in two questions or more.
     """
     usable = [record for record in records if record.ok]
     if not usable:
@@ -219,7 +241,8 @@ def discovery_ranking(
                 n_questions_with=len(by_question),
                 n_questions=len(questions),
                 few_questions=len(questions) < MIN_RELIABLE_QUESTIONS,
-                suggested=rate >= suggest_threshold,
+                # One question is one cluster: ask for two before calling it a pattern.
+                suggested=rate >= suggest_threshold and len(by_question) >= 2,
             )
         )
     return sorted(ranking, key=lambda item: (-item.rate, item.name.casefold()))

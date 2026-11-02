@@ -214,3 +214,47 @@ def test_the_ranking_is_sorted_by_rate():
 
 def test_an_empty_ranking_when_no_answer_was_discovered():
     assert discovery_ranking([record("q01", 0, ok=False)]) == []
+
+
+# --- grouping of branches and evidence for a suggestion (found in a live run) ---------------
+
+BRANCHES = (
+    "Prueba El Corte Inglés (Centro), o El Corte Inglés Valencia. "
+    "En Vive Valencia hay ropa de segunda mano."
+)
+
+
+def test_branches_of_one_business_are_grouped():
+    brief = BRIEF.model_copy(update={"city": "Valencia"})
+    client = client_returning(
+        ("El Corte Inglés (Centro)", PLACE), ("El Corte Inglés Valencia", PLACE)
+    )
+
+    record = discover_businesses(answer(BRANCHES), brief, client)
+
+    assert [(item.name, item.key) for item in record.businesses] == [
+        ("El Corte Inglés", "el corte ingles")
+    ]
+
+
+def test_a_city_word_is_kept_when_it_is_the_name():
+    # "Vive Valencia" without the city would be "Vive": keep names of one word left.
+    brief = BRIEF.model_copy(update={"city": "Valencia"})
+    client = client_returning(("Vive Valencia", PLACE))
+
+    record = discover_businesses(answer(BRANCHES), brief, client)
+
+    assert record.businesses[0].key == "vive valencia"
+
+
+def test_one_question_is_not_enough_evidence_for_a_suggestion():
+    # Answers to one question are one cluster: a name tied to it may be question-specific.
+    records = [record("q01", batch, "Uniformes Online") for batch in range(3)] + [
+        record(f"q{index:02d}", 0) for index in range(2, 6)
+    ]
+
+    (item,) = discovery_ranking(records, suggest_threshold=0.1)
+
+    assert item.rate == pytest.approx(3 / 7)
+    assert item.n_questions_with == 1
+    assert not item.suggested

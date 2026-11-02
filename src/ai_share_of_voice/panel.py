@@ -118,9 +118,20 @@ def generate_panel(
     return QuestionPanel(
         questions=tuple(
             Question(id=f"q{index:02d}", text=text, intent=intent)
-            for index, (text, intent) in enumerate(accepted, start=1)
+            for index, (text, intent) in enumerate(_alternate_intents(accepted), start=1)
         )
     )
+
+
+def _alternate_intents(accepted: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """One question of each intent in turn, so the first N questions keep the mix."""
+    by_intent = {intent: [item for item in accepted if item[1] == intent] for intent in INTENTS}
+    ordered = []
+    while any(by_intent.values()):
+        for intent in INTENTS:
+            if by_intent[intent]:
+                ordered.append(by_intent[intent].pop(0))
+    return ordered
 
 
 def write_panel_file(panel: QuestionPanel, path: Path) -> Path:

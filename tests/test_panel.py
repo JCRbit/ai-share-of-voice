@@ -1,4 +1,8 @@
 import pytest
+
+from ai_share_of_voice.errors import ToolFailure
+from ai_share_of_voice.exceptions import BudgetExceeded
+from ai_share_of_voice.llm_client import Budget, SimulatedClient
 from ai_share_of_voice.panel import (
     INTENTS,
     DraftQuestion,
@@ -8,10 +12,6 @@ from ai_share_of_voice.panel import (
     read_panel_file,
     write_panel_file,
 )
-
-from ai_share_of_voice.errors import ToolFailure
-from ai_share_of_voice.exceptions import BudgetExceeded
-from ai_share_of_voice.llm_client import Budget, SimulatedClient
 from ai_share_of_voice.schemas.brief import BrandSpec, Brief
 
 BRIEF = Brief(
@@ -139,3 +139,18 @@ def test_a_panel_file_round_trips(tmp_path):
 
     assert read_panel_file(path) == panel
     assert path.read_text("utf-8").splitlines()[0] == "id,text,intent"
+
+
+def test_the_panel_alternates_intents_so_a_cut_keeps_the_mix():
+    answer = DraftQuestions(
+        questions=[
+            DraftQuestion(text=text, intent=intent)
+            for intent in INTENTS
+            for text in [f"¿Pregunta {intent} número {index} en Valencia?" for index in range(2)]
+        ]
+    )
+    client, _ = scripted(answer)
+
+    panel = generate_panel(BRIEF, client, size=10)
+
+    assert [question.intent for question in panel.questions[:5]] == list(INTENTS)
