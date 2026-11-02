@@ -103,6 +103,10 @@ class ResultsBundle:
     view: ResultsView | None
     recommendation: float | None = None  # client brand recommendation rate
     spend_usd: float = 0.0
+    brand: str = ""
+    sector: str = ""
+    city: str = ""
+    date: str = ""  # YYYY-MM-DD of the results
     discovered: list[dict[str, str]] = field(default_factory=list)
     research: dict[str, Any] | None = None
     notes: list[str] = field(default_factory=list)
@@ -266,6 +270,8 @@ class RunController:
                     data, self.runs_dir, target_half_width=run.target_half_width
                 )
                 bundle.spend_usd = data.spend_usd
+                bundle.brand, bundle.sector, bundle.city = data.brand, data.sector, data.city
+                bundle.date = f"{data.generated_at:%Y-%m-%d}"
                 bundle.recommendation = _client_rate(
                     run_id, data.brand, self.runs_dir, "recommendation_rate"
                 )

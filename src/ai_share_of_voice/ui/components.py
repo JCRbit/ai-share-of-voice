@@ -13,7 +13,7 @@ from html import escape
 from urllib.parse import urlsplit
 
 from ai_share_of_voice.ui.i18n import kind, stage, t
-from ai_share_of_voice.ui.run_controller import RunView
+from ai_share_of_voice.ui.run_controller import ResultsBundle, RunView
 
 STAGE_ORDER = (
     "questions",
@@ -39,6 +39,12 @@ APP_CSS = """
 :root { --sov-ok:#15803d; --sov-warn:#b45309; --sov-bad:#b91c1c; --sov-info:#4338ca;
         --sov-accent:#4f46e5; --sov-soft:rgba(79,70,229,.08); }
 .gradio-container { max-width: 1120px !important; margin: 0 auto !important; }
+.sov-topbar { display:flex; align-items:center; gap: 12px; padding: 6px 2px; }
+.sov-logo { width: 38px; height: 38px; border-radius: 10px; display:flex; align-items:center;
+  justify-content:center; font-size: 20px; color:#fff;
+  background: linear-gradient(135deg, #4f46e5, #0ea5e9); }
+.sov-topbar b { font-size: 18px; display:block; }
+.sov-topbar span { font-size: 13px; color: var(--body-text-color-subdued); }
 .sov-hero { padding: 28px 28px 22px; border-radius: 18px; margin-bottom: 8px;
   background: linear-gradient(135deg, rgba(79,70,229,.12), rgba(14,165,233,.10));
   border: 1px solid var(--border-color-primary); }
@@ -61,8 +67,9 @@ APP_CSS = """
 .sov-banner.bad { background: rgba(185,28,28,.10); color: var(--sov-bad); }
 .sov-banner.info { background: var(--sov-soft); color: var(--sov-info); }
 .sov-banner.neutral { background: var(--block-background-fill); }
-.sov-track { display:flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
-.sov-stage { flex: 1 1 110px; padding: 10px 12px; border-radius: 12px; font-size: 13px;
+.sov-track { display:grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 8px; margin: 14px 0; }
+.sov-stage { padding: 10px 10px; border-radius: 12px; font-size: 12.5px; line-height: 1.3;
   border: 1px solid var(--border-color-primary); background: var(--block-background-fill); }
 .sov-stage .dot { display:inline-block; width: 9px; height: 9px; border-radius: 50%;
   margin-right: 6px; background: var(--border-color-primary); }
@@ -110,6 +117,11 @@ APP_CSS = """
 """
 
 
+def _money(lang: str, usd: float) -> str:
+    text = f"{usd:.3f} USD"
+    return text.replace(".", ",") if lang == "es" else text
+
+
 def _pct(value: float | None) -> str:
     return "—" if value is None else f"{value:.0%}"
 
@@ -122,6 +134,14 @@ def _safe_link(url: str, label: str) -> str:
             f"{escape(label)}</a>"
         )
     return escape(label)
+
+
+def topbar_html(lang: str) -> str:
+    return (
+        '<div class="sov-topbar"><div class="sov-logo">◎</div>'
+        f"<div><b>{escape(t(lang, 'app_title'))}</b>"
+        f"<span>{escape(t(lang, 'app_subtitle'))}</span></div></div>"
+    )
 
 
 def hero_html(lang: str, simulated: bool) -> str:
@@ -212,7 +232,7 @@ def kpis_html(
         ),
         ("", t(lang, "kpi_recommend"), _pct(recommendation), t(lang, "kpi_mention_help")),
         ("", t(lang, "kpi_answers"), str(answers), ""),
-        ("", t(lang, "kpi_spend"), f"{spend_usd:.3f} $", ""),
+        ("", t(lang, "kpi_spend"), _money(lang, spend_usd), ""),
     ]
     return (
         '<div class="sov-kpis">'
@@ -276,8 +296,8 @@ def discovered_html(lang: str, rows: list[dict[str, str]], limit: int = 8) -> st
         f"<tr><td>{star if row.get('suggested') == 'True' else ''}{escape(row['name'])}"
         f"<div class='sov-muted'>{escape(kind(lang, row['kind']))}</div></td>"
         f"{_bar_cell(float(row['rate']))}<td><b>{_pct(float(row['rate']))}</b></td>"
-        f"<td class='sov-muted'>{escape(row.get('n_questions_with', ''))} "
-        f"{escape(t(lang, 'questions_col').lower())}</td></tr>"
+        f"<td class='sov-muted'>"
+        f"{escape(t(lang, 'in_questions', n=row.get('n_questions_with', '?')))}</td></tr>"
         for row in rows[:limit]
     )
     return (
@@ -309,3 +329,33 @@ def research_html(lang: str, research: dict | None) -> str:
         )
         html += f"<h3>{escape(t(lang, 'checks_title'))}</h3><ul class='sov-list'>{lines}</ul>"
     return html
+
+
+def results_html(lang: str, bundle: ResultsBundle) -> str:
+    """Sample label, key figures, plain summary and brand comparison of one run."""
+    view = bundle.view
+    if view is None or view.headline is None:
+        return f"<p>{escape(t(lang, 'results_pending'))}</p>"
+    head = view.headline
+    rows = [(row.brand, row.estimate, row.ci_low, row.ci_high) for row in view.table]
+    label = t(
+        lang,
+        "sample_label",
+        date=bundle.date,
+        answers=head.n_answers,
+        sector=bundle.sector,
+        city=bundle.city,
+    )
+    return (
+        f"<p class='sov-muted'>{escape(label)}</p>"
+        + kpis_html(
+            lang,
+            mention=(head.estimate, head.ci_low, head.ci_high),
+            recommendation=bundle.recommendation,
+            answers=head.n_answers,
+            spend_usd=bundle.spend_usd,
+        )
+        + summary_html(lang, bundle.brand, [(name, value) for name, value, _, _ in rows])
+        + f"<h3>{escape(t(lang, 'by_brand'))}</h3>"
+        + comparison_html(lang, bundle.brand, rows)
+    )

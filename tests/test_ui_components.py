@@ -11,6 +11,7 @@ from ai_share_of_voice.ui.components import (
     kpis_html,
     progress_html,
     research_html,
+    results_html,
     stage_states,
     summary_html,
 )
@@ -180,3 +181,68 @@ def test_the_hero_explains_the_product_in_three_steps():
     assert "¿Te recomienda la inteligencia artificial?" in html
     assert html.count('class="sov-step"') == 3
     assert "Modo demostración" in html
+
+
+def test_results_html_puts_the_key_figures_first(tmp_path):
+    from ai_share_of_voice.tools.stats_tool import MetricRow
+    from ai_share_of_voice.ui.results_tab import HeadlineRow, ResultsView
+    from ai_share_of_voice.ui.run_controller import ResultsBundle
+
+    view = ResultsView(
+        run_id="run-x",
+        metric="mention_rate",
+        sample_label="x",
+        headline=HeadlineRow(
+            metric="mention_rate",
+            estimate=0.7,
+            ci_low=0.4,
+            ci_high=1.0,
+            interval_method="wilson_bootstrap_hull",
+            n_answers=30,
+            n_questions=10,
+        ),
+        table=(
+            MetricRow(brand="Glovo", estimate=0.7, ci_low=0.4, ci_high=1.0, ci_method="m"),
+            MetricRow(brand="Just Eat", estimate=0.8, ci_low=0.5, ci_high=1.0, ci_method="m"),
+        ),
+    )
+    bundle = ResultsBundle(
+        view=view,
+        recommendation=0.5,
+        spend_usd=0.02,
+        brand="Glovo",
+        sector="food delivery",
+        city="Madrid",
+        date="2026-11-02",
+    )
+
+    html = results_html("es", bundle)
+
+    assert html.index("sov-kpis") < html.index("sov-table")
+    assert "30 respuestas sobre food delivery en Madrid" in html
+    assert "Glovo aparece en 7" in html
+
+
+def test_results_html_without_results_says_so():
+    from ai_share_of_voice.ui.run_controller import ResultsBundle
+
+    assert "aún no están listos" in results_html("es", ResultsBundle(view=None))
+
+
+def test_money_and_question_counts_read_naturally():
+    html = kpis_html("es", mention=(0.5, 0.3, 0.7), recommendation=None, answers=10, spend_usd=0.09)
+    rows = [
+        {
+            "name": "Bolt",
+            "kind": "other",
+            "rate": "0.3",
+            "suggested": "False",
+            "n_questions_with": "4",
+        }
+    ]
+
+    assert "0,090 USD" in html
+    assert "0.090 USD" in kpis_html(
+        "en", mention=(0.5, 0.3, 0.7), recommendation=None, answers=10, spend_usd=0.09
+    )
+    assert "en 4 preguntas" in discovered_html("es", rows)

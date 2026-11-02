@@ -143,3 +143,7 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
   `ui/run_controller.py` (background thread, SQLite checkpointer, real interrupt/resume, real
   `finalize` from J writes report.md + tracking CSV). `python app.py --simulated` = free demo.
   Checked in the browser: start -> approval pause -> approve -> results with downloads.
+- UI redesign (2026-11-02): non-technical users, Spanish by default with an ES/EN switch
+  (`ui/i18n.py`, every key in both languages), plain-language HTML pieces (`ui/components.py`:
+  hero with how it works, 9-step progress, KPI cards, margin of error, brand bars), all external
+  text escaped. Checked in the browser in ES and EN: start -> approval -> results.

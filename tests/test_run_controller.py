@@ -55,6 +55,8 @@ def test_approving_writes_the_report_and_the_downloads(controller, tmp_path):
     assert results.view is not None and results.view.headline is not None
     assert len(results.view.downloads) == 2
     assert results.discovered  # demo answers name an untracked business
+    assert (results.brand, results.city) == ("Glovo", "Madrid")
+    assert results.recommendation is not None and results.spend_usd > 0
 
 
 def test_rejecting_closes_without_a_report(controller, tmp_path):

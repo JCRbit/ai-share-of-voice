@@ -16,6 +16,7 @@ DEFAULT_LANG: Lang = "es"
 TEXTS: dict[str, dict[str, str]] = {
     "es": {
         "app_title": "AI Share of Voice",
+        "app_subtitle": "Tu visibilidad en las respuestas de la IA",
         "hero_title": "¿Te recomienda la inteligencia artificial?",
         "hero_text": "Cada vez más clientes preguntan a ChatGPT, Gemini o similares dónde "
         "comprar o qué servicio elegir. Descubre si la IA te nombra, si te recomienda y a "
@@ -108,6 +109,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "kind_col": "Tipo",
         "rate_col": "Aparece en",
         "questions_col": "En cuántas preguntas",
+        "in_questions": "en {n} preguntas",
         "suggested_col": "",
         "sources_title": "De dónde sale la información",
         "no_sources": "No se consultaron fuentes externas en esta medición.",
@@ -125,6 +127,7 @@ TEXTS: dict[str, dict[str, str]] = {
     },
     "en": {
         "app_title": "AI Share of Voice",
+        "app_subtitle": "Your visibility in AI answers",
         "hero_title": "Does artificial intelligence recommend you?",
         "hero_text": "More and more customers ask ChatGPT, Gemini and similar tools where to "
         "buy or which service to choose. Find out whether the AI names you, recommends you "
@@ -218,6 +221,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "kind_col": "Kind",
         "rate_col": "Appears in",
         "questions_col": "In how many questions",
+        "in_questions": "in {n} questions",
         "suggested_col": "",
         "sources_title": "Where the information comes from",
         "no_sources": "No external sources were consulted in this measurement.",
