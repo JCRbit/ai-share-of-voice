@@ -305,3 +305,24 @@ def test_a_per_minute_rate_limit_is_a_plain_tool_failure():
     with pytest.raises(ToolFailure) as error:
         client.answer("prompt")
     assert not isinstance(error.value, QuotaExhausted)
+
+
+def test_a_groq_per_minute_limit_with_a_billing_link_is_not_a_quota():
+    message = (
+        "Rate limit reached for model `openai/gpt-oss-120b` on requests per minute (RPM): "
+        "Limit 30, Used 30. Please try again in 2s. Need more? Upgrade at "
+        "https://console.groq.com/settings/billing"
+    )
+    client = live(FakeCompletions([], error=FakeRateLimitError(message)))
+
+    with pytest.raises(ToolFailure) as error:
+        client.answer("prompt")
+    assert not isinstance(error.value, QuotaExhausted)
+
+
+def test_a_groq_tokens_per_day_limit_is_a_quota():
+    message = "Rate limit reached on tokens per day (TPD): Limit 200000, Used 199000"
+    client = live(FakeCompletions([], error=FakeRateLimitError(message)))
+
+    with pytest.raises(QuotaExhausted):
+        client.answer("prompt")

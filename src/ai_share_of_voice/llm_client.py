@@ -89,7 +89,7 @@ class QuotaExhausted(ToolFailure):
     """
 
 
-_QUOTA_HINTS = ("per day", "quota", "billing")
+_QUOTA_HINTS = ("per day", "quota")  # not "billing": Groq links it on per-minute limits
 
 
 def _is_quota_error(error: Exception) -> bool:
