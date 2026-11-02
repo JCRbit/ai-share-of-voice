@@ -125,6 +125,9 @@ APP_CSS = """
   padding: 0 2px; font-weight: 600; }
 /* The questions read as text, not code: Gradio draws table cells in a monospace font. */
 .sov-review td, .sov-review td * { font-family: var(--font) !important; font-size: 14px; }
+.sov-actions { padding: 14px 18px; border-radius: 14px; margin: 6px 0 12px;
+  background: rgba(21,128,61,.08); border: 1px solid var(--border-color-primary); }
+.sov-actions h3 { margin: 0 0 6px; }
 .sov-chips { display:flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .sov-chip { padding: 6px 12px; border-radius: 999px; font-size: 13px;
   border: 1px solid var(--border-color-primary); }
@@ -205,9 +208,14 @@ def stage_states(view: RunView) -> dict[str, str]:
 def progress_html(view: RunView, lang: str) -> str:
     tone = PHASE_TONE[view.phase]
     message = t(lang, view.phase)
-    if view.error:
-        message += f" — {view.error}"
+    if view.phase == "partial":
+        message += " — " + friendly_failure(lang, view.failure_kind, view.failure_reason)
+    elif view.phase == "error":
+        message += " — " + friendly_failure(lang, "unexpected", view.error)
     banner = f'<div class="sov-banner {tone}">{escape(message)}</div>'
+    if view.max_rounds:
+        rounds = t(lang, "round_progress", done=view.rounds_done, total=view.max_rounds)
+        banner += f'<p class="sov-muted" style="margin:8px 2px 0">{escape(rounds)}</p>'
     track = "".join(
         f'<div class="sov-stage {state}"><span class="dot"></span>{escape(stage(lang, node))}</div>'
         for node, state in stage_states(view).items()
@@ -362,6 +370,7 @@ def results_html(lang: str, bundle: ResultsBundle) -> str:
         lang,
         "sample_label",
         date=bundle.date,
+        model=bundle.subject_model or "—",
         answers=head.n_answers,
         sector=bundle.sector,
         city=bundle.city,
@@ -424,3 +433,80 @@ def panel_problems_text(lang: str, problems: list[PanelProblem]) -> str:
             message = t(lang, "problem_row", row=problem.row, problem=message)
         lines.append(f"- {message}")
     return "\n".join(lines)
+
+
+_QUOTA_HINTS = ("per day", "quota", "rate limit", "ratelimit", "429")
+
+
+def friendly_failure(lang: str, kind: str | None, reason: str | None) -> str:
+    """What happened, in plain words. The technical reason stays in the log."""
+    text = (reason or "").casefold()
+    if any(hint in text for hint in _QUOTA_HINTS):
+        return t(lang, "fail_quota")
+    if kind == "budget_exhausted":
+        return t(lang, "fail_budget")
+    if kind == "no_evidence":
+        return t(lang, "fail_no_evidence")
+    if "sources" in text or "search" in text:
+        return t(lang, "fail_sources")
+    return t(lang, "fail_unexpected")
+
+
+def insights_html(lang: str, bundle: ResultsBundle) -> str:
+    """Actions that follow from the figures, by fixed rules: no model writes advice."""
+    view = bundle.view
+    if view is None or view.headline is None:
+        return ""
+    rows = {row.brand: row.estimate for row in view.table if row.estimate is not None}
+    mine = rows.get(bundle.brand)
+    actions: list[str] = []
+    rec = bundle.recommendation
+    if mine and rec is not None and rec < 0.6 * mine:
+        actions.append(t(lang, "act_recommend_gap", m=_pct(mine), r=_pct(rec)))
+    if rows:
+        top = max(rows.values())
+        leaders = [name for name, value in rows.items() if value == top]
+        if bundle.brand in leaders and top > 0:
+            actions.append(t(lang, "act_you_lead"))
+        elif top > 0:
+            actions.append(t(lang, "act_leader", leader=leaders[0], rate=_pct(top)))
+    suggested = [row["name"] for row in bundle.discovered if row.get("suggested") == "True"][:3]
+    if suggested:
+        actions.append(t(lang, "act_suggested", names=", ".join(suggested)))
+    if any("Few questions" in item for item in view.notes):
+        actions.append(t(lang, "act_few"))
+    half_width = (view.headline.ci_high - view.headline.ci_low) / 2
+    if half_width > 0.15:
+        actions.append(t(lang, "act_wide", hw=_pct(half_width)))
+    if not actions:
+        return ""
+    items = "".join(f"<li>{escape(action)}</li>" for action in actions)
+    return (
+        f'<div class="sov-actions"><h3>{escape(t(lang, "actions_title"))}</h3>'
+        f'<ul class="sov-list">{items}</ul></div>'
+    )
+
+
+def glossary_html(lang: str) -> str:
+    items = []
+    for key in ("g_named", "g_recommended", "g_margin", "g_sample"):
+        term, _, meaning = t(lang, key).partition(": ")
+        items.append(f"<li><b>{escape(term)}</b>: {escape(meaning)}</li>")
+    return f'<ul class="sov-list">{"".join(items)}</ul>'
+
+
+_IMAGE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+
+
+def safe_markdown(text: str) -> str:
+    """A model draft as markdown that cannot carry HTML or load images (tracking pixels)."""
+    without_images = _IMAGE.sub("", text)
+    return escape(without_images, quote=False)
+
+
+def objections_html(objections: tuple[str, ...], lang: str) -> str:
+    """The Skeptic's open objections under the draft (escaped: they quote the draft)."""
+    if not objections:
+        return f"<p>✔ {escape(t(lang, 'no_objections'))}</p>"
+    items = "".join(f"<li>{escape(item)}</li>" for item in objections)
+    return f"<p><b>{escape(t(lang, 'objections'))}</b></p><ul class='sov-list'>{items}</ul>"

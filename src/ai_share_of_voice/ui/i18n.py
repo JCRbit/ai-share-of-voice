@@ -94,8 +94,9 @@ TEXTS: dict[str, dict[str, str]] = {
         "plain_sentence": "De cada 10 respuestas de la IA, **{brand} aparece en {of_ten}**.",
         "plain_leader": "La marca más nombrada es **{leader}** ({rate}).",
         "plain_you_lead": "**Eres la marca más nombrada** de tu comparativa.",
-        "sample_label": "Resultado de una muestra del {date}: {answers} respuestas sobre "
-        "{sector} en {city}. Es una foto de lo que dice la IA, no una cuota de mercado.",
+        "sample_label": "Resultado de una muestra del {date} con la IA {model}: {answers} "
+        "respuestas sobre {sector} en {city}. Es una foto de lo que dice esa IA, no una cuota "
+        "de mercado.",
         "by_brand": "Tú frente a tu competencia",
         "brand_col": "Marca",
         "mention_col": "Te nombra",
@@ -124,6 +125,45 @@ TEXTS: dict[str, dict[str, str]] = {
         "rejected": "Rechazado: no se ha publicado nada",
         "error": "Algo ha fallado",
         "notes_title": "Ten en cuenta",
+        "round_progress": "Ronda {done} de {total}",
+        "fail_quota": "El proveedor de IA ha agotado su cuota gratuita por hoy. Vuelve a "
+        "intentarlo "
+        "más tarde o usa el modo demostración.",
+        "fail_budget": "Se alcanzó el gasto máximo antes de terminar. Usa menos preguntas o "
+        "sube el "
+        "gasto máximo.",
+        "fail_sources": "No se pudo buscar fuentes en internet. Inténtalo de nuevo más tarde.",
+        "fail_no_evidence": "No hubo respuestas suficientes para calcular resultados.",
+        "fail_unexpected": "Algo falló durante la medición. Los detalles están en el registro "
+        "técnico.",
+        "actions_title": "Qué puedes hacer ahora",
+        "act_recommend_gap": "La IA te nombra en el {m} de las respuestas, pero solo te "
+        "recomienda en "
+        "el {r}. Lee las respuestas reales para ver qué dice de ti.",
+        "act_leader": "{leader} aparece más que tú ({rate}). Mira en «Una respuesta real de la IA» "
+        "en qué preguntas gana.",
+        "act_you_lead": "Eres la marca más nombrada. Repite la medición cada mes para comprobar "
+        "que "
+        "se mantiene.",
+        "act_suggested": "La IA también recomienda {names}, que no estás siguiendo: añádelos como "
+        "competidores en la próxima medición.",
+        "act_few": "Usa 10 o más preguntas para que el resultado sea fiable.",
+        "act_wide": "El margen de error es amplio (±{hw}): más preguntas o rondas lo estrecharán.",
+        "glossary_title": "¿Qué significa cada cosa?",
+        "g_named": "Te nombra: en qué parte de las respuestas aparece tu marca, aunque sea "
+        "de pasada.",
+        "g_recommended": "Te recomienda: en qué parte la IA sugiere tu marca como buena opción. "
+        "Es lo "
+        "que más importa.",
+        "g_margin": "Margen de error: el rango en el que probablemente está el valor real. Con más "
+        "preguntas y rondas se estrecha.",
+        "g_sample": "Muestra fechada: una foto de lo que respondió una IA concreta en una "
+        "fecha. Otro "
+        "día u otra IA pueden responder distinto.",
+        "history_title": "Mis mediciones",
+        "history_pick": "Abrir una medición anterior",
+        "history_open": "Abrir",
+        "history_empty": "Aún no hay mediciones aprobadas.",
         "review_title": "Ver y editar las preguntas que se harán a la IA (opcional)",
         "review_help": "Estas son las preguntas que haremos a la IA en cada ronda, como las haría "
         "un cliente. Puedes cambiar el texto, borrar filas o añadir las tuyas (fila nueva al "
@@ -258,8 +298,9 @@ TEXTS: dict[str, dict[str, str]] = {
         "plain_sentence": "Out of every 10 AI answers, **{brand} appears in {of_ten}**.",
         "plain_leader": "The most named brand is **{leader}** ({rate}).",
         "plain_you_lead": "**You are the most named brand** in your comparison.",
-        "sample_label": "Result of a sample taken on {date}: {answers} answers about {sector} "
-        "in {city}. It is a snapshot of what the AI says, not a market share.",
+        "sample_label": "Result of a sample taken on {date} with the AI {model}: {answers} "
+        "answers about {sector} in {city}. It is a snapshot of what that AI says, not a market "
+        "share.",
         "by_brand": "You against your competitors",
         "brand_col": "Brand",
         "mention_col": "Names it",
@@ -288,6 +329,41 @@ TEXTS: dict[str, dict[str, str]] = {
         "rejected": "Rejected: nothing was published",
         "error": "Something went wrong",
         "notes_title": "Keep in mind",
+        "round_progress": "Round {done} of {total}",
+        "fail_quota": "The AI provider has used up its free quota for today. Try again later or "
+        "use "
+        "demo mode.",
+        "fail_budget": "The maximum spend was reached before the end. Use fewer questions or raise "
+        "the maximum spend.",
+        "fail_sources": "Web sources could not be searched. Try again later.",
+        "fail_no_evidence": "There were not enough answers to compute results.",
+        "fail_unexpected": "Something went wrong during the measurement. The details are in the "
+        "technical log.",
+        "actions_title": "What you can do now",
+        "act_recommend_gap": "The AI names you in {m} of its answers but recommends you in only "
+        "{r}. "
+        "Read the real answers to see what it says about you.",
+        "act_leader": '{leader} appears more than you ({rate}). See in "A real answer from the AI" '
+        "which questions it wins.",
+        "act_you_lead": "You are the most named brand. Repeat the measurement every month to check "
+        "that it holds.",
+        "act_suggested": "The AI also recommends {names}, which you do not track: add them as "
+        "competitors in the next measurement.",
+        "act_few": "Use 10 or more questions for a reliable result.",
+        "act_wide": "The margin of error is wide (±{hw}): more questions or rounds will narrow it.",
+        "glossary_title": "What does each thing mean?",
+        "g_named": "Names you: in what share of the answers your brand appears, even in passing.",
+        "g_recommended": "Recommends you: in what share the AI suggests your brand as a good "
+        "choice. "
+        "This is what matters most.",
+        "g_margin": "Margin of error: the range where the real value probably is. More questions "
+        "and rounds narrow it.",
+        "g_sample": "Dated sample: a snapshot of what one AI answered on one date. Another day or "
+        "another AI may answer differently.",
+        "history_title": "My measurements",
+        "history_pick": "Open a past measurement",
+        "history_open": "Open",
+        "history_empty": "There are no approved measurements yet.",
         "review_title": "See and edit the questions the AI will be asked (optional)",
         "review_help": "These are the questions we will ask the AI in every round, as a customer "
         "would. You can change the text, delete rows or add your own (new row at the end). None "

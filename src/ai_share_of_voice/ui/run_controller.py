@@ -23,13 +23,14 @@ from pydantic import Field, field_validator
 
 from ai_share_of_voice.automation.finalize import ApprovalRequired, make_finalize_node
 from ai_share_of_voice.automation.report import build_report_data
+from ai_share_of_voice.automation.tracking_csv import TRACKING_FILE_NAME
 from ai_share_of_voice.checkpoint import sqlite_checkpointer
 from ai_share_of_voice.config import Settings
 from ai_share_of_voice.event_log import EventLog
 from ai_share_of_voice.graph import build_graph, initial_state, new_run_id, run_config
 from ai_share_of_voice.guard import guard_nodes
 from ai_share_of_voice.llm_client import build_clients
-from ai_share_of_voice.nodes import NodeDeps
+from ai_share_of_voice.nodes import NodeDeps, make_fake_nodes
 from ai_share_of_voice.nodes_real import (
     DISCOVERED_FILE_NAME,
     PANEL_FILE_NAME,
@@ -123,6 +124,25 @@ class RunView(Contract):
     draft: str = ""
     objections: tuple[str, ...] = ()
     error: str | None = None
+    rounds_done: int = 0
+    max_rounds: int = 0
+    failure_kind: str | None = None  # why a partial run closed (errors.FailureKind)
+    failure_reason: str | None = None  # technical text, for the log only
+
+
+@dataclass(frozen=True)
+class PastRun:
+    """One approved measurement, as ``tracking.csv`` records it."""
+
+    run_id: str
+    date: str
+    brand: str
+    sector: str
+    city: str
+    share: float
+    ci_low: float
+    ci_high: float
+    n_answers: int
 
 
 @dataclass(frozen=True)
@@ -141,6 +161,7 @@ class ResultsBundle:
     view: ResultsView | None
     recommendation: float | None = None  # client brand recommendation rate
     spend_usd: float = 0.0
+    subject_model: str = ""  # the AI that was measured
     brand: str = ""
     sector: str = ""
     city: str = ""
@@ -158,6 +179,7 @@ class _Run:
     thread: threading.Thread | None = None
     error: str | None = None
     target_half_width: float = 0.05
+    max_rounds: int = 0
 
 
 SourcesFactory = Callable[[], AbstractContextManager[McpSourcesClient]]
@@ -205,7 +227,7 @@ class RunController:
         """Start a run; ``panel`` is the one the user approved, asked in every batch."""
         brief = form.to_brief(self.settings.spend_cap_usd)
         run_id = new_run_id()
-        run = _Run(target_half_width=brief.target_half_width)
+        run = _Run(target_half_width=brief.target_half_width, max_rounds=brief.max_batches)
         with self._lock:
             self._runs[run_id] = run
         approved = None
@@ -276,16 +298,18 @@ class RunController:
         )
         values: dict[str, Any] = {}
         phase: Phase = "running"
+        finished = run.thread is None or not run.thread.is_alive()  # None: a reopened run
         if run.error:
             phase = "error"
-        elif run.thread is not None and not run.thread.is_alive() and run.graph is not None:
+        elif finished and run.graph is not None:
             state = run.graph.get_state(run.config)
             values = state.values
             if state.next == ("approval_gate",):
                 phase = "waiting_approval"
             else:
                 phase = values.get("status", "error")
-        spend = run.budget.spent_usd if run.budget is not None else 0.0
+        spend = run.budget.spent_usd if run.budget is not None else values.get("spend_usd", 0.0)
+        rounds = sum(1 for e in events if e.node == "metrics" and e.status == "succeeded")
         return RunView(
             run_id=run_id,
             phase=phase,
@@ -295,6 +319,10 @@ class RunController:
             draft=values.get("draft", ""),
             objections=tuple(values.get("objections", [])),
             error=run.error,
+            rounds_done=rounds,
+            max_rounds=run.max_rounds or rounds,
+            failure_kind=values.get("failure_kind"),
+            failure_reason=values.get("partial_reason"),
         )
 
     def wait(self, run_id: str, timeout: float = 600.0) -> RunView:
@@ -348,6 +376,49 @@ class RunController:
             choices=tuple((a.question_id, questions[a.question_id]) for a in answered),
         )
 
+    def history(self) -> list[PastRun]:
+        """Approved measurements, newest first (``tracking.csv``, written by finalize)."""
+        path = self.runs_dir / TRACKING_FILE_NAME
+        if not path.is_file():
+            return []
+        with path.open(encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        past = [
+            PastRun(
+                run_id=row["run_id"],
+                date=row["generated_at"][:10],
+                brand=row["brand"],
+                sector=row["sector"],
+                city=row["city"],
+                share=float(row["brand_share"]),
+                ci_low=float(row["ci_low"]),
+                ci_high=float(row["ci_high"]),
+                n_answers=int(row["n_answers"]),
+            )
+            for row in rows
+        ]
+        return sorted(past, key=lambda item: item.run_id, reverse=True)
+
+    def open_run(self, run_id: str) -> None:
+        """Reopen a past run from its SQLite checkpoint, so its results can be shown."""
+        if run_id in self._runs:
+            return
+        # Only the state is read: the nodes of this graph never run.
+        deps = NodeDeps(event_log=self._log, should_stop=should_stop)
+        graph = build_graph(make_fake_nodes(deps), checkpointer=self._checkpointer)
+        config = {"configurable": {"thread_id": run_id}}
+        values = graph.get_state(config).values
+        if not values.get("brief"):
+            raise KeyError(f"no saved measurement {run_id!r}")
+        brief = values["brief"]
+        with self._lock:
+            self._runs[run_id] = _Run(
+                graph=graph,
+                config=config,
+                target_half_width=brief.target_half_width,
+                max_rounds=brief.max_batches,
+            )
+
     def charts(self, run_id: str, lang: str) -> tuple[str | None, str | None]:
         """Paths of the rates and precision charts in ``lang`` (``None`` when not ready)."""
         run = self._runs[run_id]
@@ -375,6 +446,7 @@ class RunController:
                     downloads = (str(client_report), *bundle.view.downloads)
                     bundle.view = bundle.view.model_copy(update={"downloads": downloads})
                 bundle.spend_usd = data.spend_usd
+                bundle.subject_model = _measured_model(run_dir)
                 bundle.brand, bundle.sector, bundle.city = data.brand, data.sector, data.city
                 bundle.date = f"{data.generated_at:%Y-%m-%d}"
                 bundle.recommendation = _client_rate(
@@ -388,6 +460,15 @@ class RunController:
         if research.is_file():
             bundle.research = json.loads(research.read_text(encoding="utf-8"))
         return bundle
+
+
+def _measured_model(run_dir: Path) -> str:
+    """The model that gave the answers, as the raw answers record it."""
+    for path in sorted((run_dir / RAW_FOLDER).glob("batch_*.jsonl")):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                return RawAnswer.model_validate_json(line).model
+    return ""
 
 
 def _client_rate(run_id: str, brand: str, runs_dir: Path, metric: str) -> float | None:
