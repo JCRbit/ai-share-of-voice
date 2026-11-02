@@ -40,9 +40,10 @@ BASE_URLS = {Provider.GROQ: GROQ_BASE_URL, Provider.GEMINI: GEMINI_BASE_URL}
 # https://console.groq.com/docs/models · https://ai.google.dev/gemini-api/docs/models
 DEFAULT_MODELS = {
     Provider.GROQ: {
-        "subject": "llama-3.3-70b-versatile",
+        # Groq retired the Llama 3.3 and Llama 4 models in 2026 (checked 2026-11-02).
+        "subject": "openai/gpt-oss-20b",
         "agent": "openai/gpt-oss-120b",
-        # Retired by Groq in 2026: use VISION_PROVIDER=gemini or set VISION_MODEL.
+        # No vision model on Groq at that date: use VISION_PROVIDER=gemini.
         "vision": "meta-llama/llama-4-scout-17b-16e-instruct",
     },
     Provider.GEMINI: {
