@@ -147,3 +147,6 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
   (`ui/i18n.py`, every key in both languages), plain-language HTML pieces (`ui/components.py`:
   hero with how it works, 9-step progress, KPI cards, margin of error, brand bars), all external
   text escaped. Checked in the browser in ES and EN: start -> approval -> results.
+- Port guard (2026-11-02): `ui/port_guard.py`; app.py closes an old instance of itself on 7860
+  (Gradio title + runs/app.pid must both match), never another program (moves to next port).
+  Checked live: instance B closed A (pid 10212) and took 7860.

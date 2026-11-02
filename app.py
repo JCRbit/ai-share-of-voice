@@ -8,6 +8,7 @@ The UI only draws: the logic is in ``ui/run_controller.py``, the texts in ``ui/i
 the HTML pieces in ``ui/components.py``, all tested without a browser.
 """
 
+import atexit
 import os
 import sys
 from pathlib import Path
@@ -23,10 +24,12 @@ from ai_share_of_voice.config import ConfigError, LlmMode, load_settings  # noqa
 from ai_share_of_voice.tools.mcp_sources_client import open_stdio_sources  # noqa: E402
 from ai_share_of_voice.ui import components as ui  # noqa: E402
 from ai_share_of_voice.ui.i18n import event_status, note, stage, t  # noqa: E402
+from ai_share_of_voice.ui.port_guard import PortGuard  # noqa: E402
 from ai_share_of_voice.ui.run_controller import BriefForm, RunController  # noqa: E402
 
 RUNS_DIR = ROOT / "runs"
 DATA_DIR = ROOT / "data"
+DEFAULT_PORT = 7860
 LANGUAGES = [("Español", "es"), ("English", "en")]
 THEME = gr.themes.Soft(
     primary_hue="indigo",
@@ -377,8 +380,14 @@ def main() -> None:
         controller = build_controller()
     except ConfigError as error:
         raise SystemExit(f"config error: {error}") from None
+    # Close an old instance of this app that still holds the port (never another program).
+    guard = PortGuard(RUNS_DIR / "app.pid")
+    port = guard.claim(DEFAULT_PORT)
+    guard.record(port)
+    atexit.register(guard.release)
+    print(f"AI Share of Voice: http://127.0.0.1:{port}")
     build_app(controller).launch(
-        server_port=7860, allowed_paths=[str(RUNS_DIR)], theme=THEME, css=ui.APP_CSS
+        server_port=port, allowed_paths=[str(RUNS_DIR)], theme=THEME, css=ui.APP_CSS
     )
 
 
