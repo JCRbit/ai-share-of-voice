@@ -72,3 +72,5 @@ R5. One live run under 0.50 USD, logged in `runs/`.
 - T0 (2026-11-02): all local stats/docs branches were already squash-merged into main. 425 tests
   green. On this machine pytest needs `--basetemp` inside the sandbox scratchpad (system Temp denied).
 - T1 (2026-11-02): `config.py` + `tests/test_config.py`, `.env.example` lists every variable.
+- T2 (2026-11-02): `llm_client.py` (shared `Budget`, live Groq client via the OpenAI SDK, simulated
+  client, `answer()` free text for the subject model), 16 tests, `scripts/ping_llm.py` for a live check.
