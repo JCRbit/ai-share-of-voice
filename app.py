@@ -22,6 +22,7 @@ import gradio as gr  # noqa: E402
 from pydantic import ValidationError  # noqa: E402
 
 from ai_share_of_voice.config import ConfigError, LlmMode, load_settings  # noqa: E402
+from ai_share_of_voice.panel import check_user_panel  # noqa: E402
 from ai_share_of_voice.tools.mcp_sources_client import open_stdio_sources  # noqa: E402
 from ai_share_of_voice.ui import catalog  # noqa: E402
 from ai_share_of_voice.ui import components as ui  # noqa: E402
@@ -172,6 +173,22 @@ def build_app(controller: RunController) -> gr.Blocks:
                     with gr.Row():
                         questions = gr.Slider(3, 30, value=10, step=1, label=t("es", "questions"))
                         batches = gr.Slider(2, 10, value=3, step=1, label=t("es", "batches"))
+                with gr.Accordion(t("es", "review_title"), open=False) as review_box:
+                    review_help = gr.Markdown(t("es", "review_help"))
+                    review_load = gr.Button(t("es", "review_load"), size="sm")
+                    review_table = gr.Dataframe(
+                        headers=[t("es", "col_question"), t("es", "col_intent")],
+                        datatype=["str", "str"],
+                        column_count=2,
+                        row_count=1,
+                        interactive=True,
+                        wrap=True,
+                        max_height=460,
+                        type="array",
+                        elem_classes=["sov-review"],
+                    )
+                    review_message = gr.Markdown()
+                review_used = gr.State(False)  # True once the user loaded the questions
                 cost = gr.Markdown(estimate("es", 10, 3))
                 start = gr.Button(t("es", "start"), variant="primary", size="lg")
                 start_message = gr.Markdown()
@@ -208,6 +225,14 @@ def build_app(controller: RunController) -> gr.Blocks:
                         precision_caption = gr.Markdown(
                             t("es", "chart_precision_caption"), visible=False
                         )
+                example_title = gr.Markdown(f"### {t('es', 'example_title')}")
+                example_help = gr.Markdown(t("es", "example_help"))
+                with gr.Row(equal_height=True):
+                    example_pick = gr.Dropdown(
+                        [], label=t("es", "example_pick"), filterable=False, scale=4
+                    )
+                    example_random = gr.Button(t("es", "example_random"), scale=1)
+                example_html = gr.HTML()
                 discovered = gr.HTML()
                 research = gr.HTML()
                 notes = gr.Markdown()
@@ -237,7 +262,7 @@ def build_app(controller: RunController) -> gr.Blocks:
         )
 
         # --- start ------------------------------------------------------------------------
-        def on_start(
+        def make_form(
             current_lang,
             brand_value,
             competitors_value,
@@ -250,6 +275,7 @@ def build_app(controller: RunController) -> gr.Blocks:
             n_questions,
             n_batches,
         ):
+            """The validated form, or ``None`` and the message to show."""
             problems = []
             sector_value = catalog.sector_text(sector_key or "", sector_typed or "", qlang)
             if len(sector_value) < 2:
@@ -257,8 +283,7 @@ def build_app(controller: RunController) -> gr.Blocks:
             if not country_code or not city_value:
                 problems.append(t(current_lang, "need_city"))
             if problems:
-                message = t(current_lang, "form_error", error="; ".join(problems))
-                return gr.skip(), message, gr.skip()
+                return None, t(current_lang, "form_error", error="; ".join(problems))
             data = {
                 "brand": brand_value,
                 "competitors": competitors_value,
@@ -271,16 +296,68 @@ def build_app(controller: RunController) -> gr.Blocks:
                 "batches": int(n_batches),
             }
             try:
-                new_id = controller.start(BriefForm(**data))
+                return BriefForm(**data), ""
+            except (ValidationError, ValueError) as error:
+                return None, t(current_lang, "form_error", error=friendly_error(error))
+
+        def on_start(current_lang, used, table, *form_values):
+            form, message = make_form(current_lang, *form_values)
+            if form is None:
+                return gr.skip(), message, gr.skip()
+            panel = None
+            if used:  # the user reviewed the questions: run exactly those
+                rows = [(row[0], row[1] if len(row) > 1 else "") for row in table or []]
+                panel, problems = check_user_panel(rows, form.to_brief(settings.spend_cap_usd))
+                if problems:
+                    details = ui.panel_problems_text(current_lang, problems)
+                    return (
+                        gr.skip(),
+                        t(current_lang, "form_error", error="") + "\n" + details,
+                        gr.skip(),
+                    )
+            try:
+                new_id = controller.start(form, panel=panel)
             except (ValidationError, ValueError) as error:
                 message = t(current_lang, "form_error", error=friendly_error(error))
                 return gr.skip(), message, gr.skip()
             return new_id, t(current_lang, "started"), "activity"
 
+        def on_review_load(current_lang, *form_values):
+            form, message = make_form(current_lang, *form_values)
+            if form is None:
+                return gr.skip(), message, gr.skip()
+            try:
+                proposed = controller.draft_panel(form)
+            except Exception as error:  # a failed generation must not break the form
+                return (
+                    gr.skip(),
+                    t(current_lang, "form_error", error=friendly_error(error)),
+                    gr.skip(),
+                )
+            rows = [[question.text, question.intent] for question in proposed.questions]
+            return rows, t(current_lang, "review_loaded", n=len(rows)), True
+
+        form_inputs = [
+            brand,
+            competitors,
+            sector,
+            sector_other,
+            country,
+            city,
+            question_language,
+            panel,
+            questions,
+            batches,
+        ]
+        review_load.click(
+            on_review_load, [lang, *form_inputs], [review_table, review_message, review_used]
+        )
         start.click(
             on_start,
             [
                 lang,
+                review_used,
+                review_table,
                 brand,
                 competitors,
                 sector,
@@ -343,12 +420,27 @@ def build_app(controller: RunController) -> gr.Blocks:
         )
 
         # --- results ----------------------------------------------------------------------
-        def render_results(current, current_lang):
+        def answer_view(current, current_lang, picked=None):
+            """The question picker and one real answer (the picked one, else random)."""
+            example = controller.example_answer(current, picked) if current else None
+            if example is None:
+                return gr.update(choices=[], value=None), ui.answer_html(current_lang, None)
+            choices = [
+                (f"{index}. {text[:90]}", qid)
+                for index, (qid, text) in enumerate(example.choices, start=1)
+            ]
+            return (
+                gr.update(choices=choices, value=example.question_id),
+                ui.answer_html(current_lang, example),
+            )
+
+        def render_results(current, current_lang, picked=None):
             """Everything the Results tab shows, computed once per refresh."""
             hidden = gr.update(visible=False)
             if not current:
                 empty = f"<p>{t(current_lang, 'results_empty')}</p>"
-                return empty, hidden, hidden, hidden, hidden, "", "", "", None
+                no_answer = (gr.update(choices=[], value=None), ui.answer_html(current_lang, None))
+                return empty, hidden, hidden, hidden, hidden, "", "", "", None, *no_answer
             bundle = controller.results(current)
             view = bundle.view
             notes_text = ""
@@ -369,6 +461,7 @@ def build_app(controller: RunController) -> gr.Blocks:
                 ui.research_html(current_lang, bundle.research),
                 notes_text,
                 list(view.downloads) if view and view.downloads else None,
+                *answer_view(current, current_lang, picked),
             )
 
         result_outputs = [
@@ -381,15 +474,23 @@ def build_app(controller: RunController) -> gr.Blocks:
             research,
             notes,
             downloads,
+            example_pick,
+            example_html,
         ]
-        refresh.click(render_results, [run_id, lang], result_outputs)
+        refresh.click(render_results, [run_id, lang, example_pick], result_outputs)
+        example_pick.input(
+            lambda c, lg, q: answer_view(c, lg, q)[1], [run_id, lang, example_pick], example_html
+        )
+        example_random.click(
+            lambda c, lg: answer_view(c, lg), [run_id, lang], [example_pick, example_html]
+        )
 
-        def on_nav(target, current, current_lang):
+        def on_nav(target, current, current_lang, picked):
             if target == "results":
-                return gr.Tabs(selected=target), *render_results(current, current_lang)
+                return gr.Tabs(selected=target), *render_results(current, current_lang, picked)
             return gr.Tabs(selected=target), *(gr.skip() for _ in result_outputs)
 
-        nav.change(on_nav, [nav, run_id, lang], [tabs, *result_outputs])
+        nav.change(on_nav, [nav, run_id, lang, example_pick], [tabs, *result_outputs])
 
         # --- language ---------------------------------------------------------------------
         def switch_language(new, panel_value, sector_key, country_code, current, section):
@@ -427,6 +528,15 @@ def build_app(controller: RunController) -> gr.Blocks:
                 gr.update(label=t(new, "question_language")),
                 gr.update(label=t(new, "questions")),
                 gr.update(label=t(new, "batches")),
+                gr.update(label=t(new, "review_title")),
+                t(new, "review_help"),
+                gr.update(value=t(new, "review_load")),
+                gr.update(headers=[t(new, "col_question"), t(new, "col_intent")]),
+                "",  # the last review message was in the old language
+                f"### {t(new, 'example_title')}",
+                t(new, "example_help"),
+                gr.update(label=t(new, "example_pick")),
+                gr.update(value=t(new, "example_random")),
                 gr.update(value=t(new, "start")),
                 f"### {t(new, 'approval_title')}\n{t(new, 'approval_help')}",
                 gr.update(label=t(new, "comment")),
@@ -465,6 +575,15 @@ def build_app(controller: RunController) -> gr.Blocks:
                 question_language,
                 questions,
                 batches,
+                review_box,
+                review_help,
+                review_load,
+                review_table,
+                review_message,
+                example_title,
+                example_help,
+                example_pick,
+                example_random,
                 start,
                 approval_title,
                 comment,
@@ -481,7 +600,7 @@ def build_app(controller: RunController) -> gr.Blocks:
         ).then(
             # A second step, so the labels show at once and the results follow.
             render_results,
-            [run_id, lang],
+            [run_id, lang, example_pick],
             result_outputs,
         ).then(estimate, [lang, questions, batches], cost)
 

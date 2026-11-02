@@ -33,9 +33,14 @@ def demo_responders(
     names = [brand.name for brand in (brief.brand, *brief.competitors)]
 
     def answer(prompt: str) -> str:
-        named = _pick(prompt, names)
+        named = ", ".join(_pick(prompt, names))
+        if brief.language == "es":
+            return (
+                f"(Respuesta de demostración) En {brief.city} mucha gente usa {named}. "
+                f"A otros les gusta {LOCAL_BUSINESS}."
+            )
         return (
-            f"Simulated answer. In {brief.city} people often use {', '.join(named)}. "
+            f"(Demo answer) In {brief.city} people often use {named}. "
             f"Some also like {LOCAL_BUSINESS}."
         )
 

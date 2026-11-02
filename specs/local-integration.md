@@ -193,3 +193,8 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
   (QuotaExhausted stopped sampling at once, as designed). Each answer costs ~3.6k agent tokens
   (judgement + discovery), so a full run (30 questions x 5 rounds = 150 answers) needs ~540k:
   T9 needs a plan (paid tier, a lighter agent model, or one judgement + discovery call per answer).
+- T8b/T8c (2026-11-03): question review (editable table, same checks as generated questions,
+  problems per row in the user language, the approved panel is the one asked) and a real answer
+  in Results (random or picked, escaped, tracked brands highlighted, its analysis as chips).
+  Checked in the browser: a question naming Glovo is refused; an edited question is asked and
+  its real answer can be picked.

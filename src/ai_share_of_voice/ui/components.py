@@ -123,6 +123,8 @@ APP_CSS = """
   background: var(--block-background-fill); max-height: 380px; overflow: auto; }
 .sov-answer mark { background: rgba(79,70,229,.18); color: inherit; border-radius: 4px;
   padding: 0 2px; font-weight: 600; }
+/* The questions read as text, not code: Gradio draws table cells in a monospace font. */
+.sov-review td, .sov-review td * { font-family: var(--font) !important; font-size: 14px; }
 .sov-chips { display:flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .sov-chip { padding: 6px 12px; border-radius: 999px; font-size: 13px;
   border: 1px solid var(--border-color-primary); }
