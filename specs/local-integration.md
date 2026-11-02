@@ -95,6 +95,10 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
 - D-a Provider: **Groq** (free tier, OpenAI-compatible, has a vision model). Decided 2026-11-02.
   Defaults in `config.py`: subject `llama-3.3-70b-versatile`, agent `openai/gpt-oss-120b`,
   vision `meta-llama/llama-4-scout-17b-16e-instruct`. Team decision 3 is still pending upstream.
+- D-d Subject model while developing: **Groq `openai/gpt-oss-20b`** (free, high limits). Decided
+  2026-11-02 after the Gemini free tier capped `gemini-3.6-flash` at 20 requests/day. Gemini stays
+  for vision (few calls per run) and for the final measurement. Dev runs are functional checks,
+  not measurements: the subject and the agents are the same model family.
 - D-b Search backend: `none` (fixtures) by default; `tavily` optional. Open.
 - D-c Cap per run: 0.50 USD in `.env.example`. Proposed.
 
