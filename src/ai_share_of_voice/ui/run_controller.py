@@ -136,6 +136,7 @@ class PastRun:
 
     run_id: str
     date: str
+    time: str  # HH:MM UTC, to tell apart runs of one day
     brand: str
     sector: str
     city: str
@@ -387,6 +388,7 @@ class RunController:
             PastRun(
                 run_id=row["run_id"],
                 date=row["generated_at"][:10],
+                time=row["generated_at"][11:16],
                 brand=row["brand"],
                 sector=row["sector"],
                 city=row["city"],

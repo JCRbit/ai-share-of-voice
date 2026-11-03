@@ -33,6 +33,7 @@ from ai_share_of_voice.ui.run_controller import BriefForm, RunController  # noqa
 RUNS_DIR = ROOT / "runs"
 DATA_DIR = ROOT / "data"
 DEFAULT_PORT = 7860
+SECONDS_PER_ANSWER = 25
 LANGUAGES = [("Español", "es"), ("English", "en")]
 THEME = gr.themes.Soft(
     primary_hue="indigo",
@@ -84,7 +85,12 @@ def build_app(controller: RunController) -> gr.Blocks:
 
     def estimate(lang: str, questions: float, batches: float) -> str:
         answers = int(questions) * int(batches)
-        return t(lang, "estimate", answers=answers, cap=settings.spend_cap_usd)
+        text = t(lang, "estimate", answers=answers, cap=settings.spend_cap_usd)
+        if simulated:
+            return f"{text}  \n{t(lang, 'time_demo')}"
+        # Measured in live runs: ~25 s per answer (answer, judgement and discovery calls).
+        minutes = max(1, round(answers * SECONDS_PER_ANSWER / 60))
+        return f"{text}  \n{t(lang, 'time_live', minutes=minutes)}"
 
     with gr.Blocks(title="AI Share of Voice") as app:
         lang = gr.State("es")
@@ -200,7 +206,9 @@ def build_app(controller: RunController) -> gr.Blocks:
                     approval_title = gr.Markdown(
                         f"### {t('es', 'approval_title')}\n{t('es', 'approval_help')}"
                     )
-                    draft = gr.HTML()
+                    # Formatted, sanitized markdown: no HTML and no images from the model.
+                    draft = gr.Markdown(elem_classes=["sov-draft"])
+                    objections_box = gr.HTML()
                     comment = gr.Textbox(label=t("es", "comment"), lines=2)
                     with gr.Row():
                         approve = gr.Button(t("es", "approve"), variant="primary")
@@ -212,8 +220,14 @@ def build_app(controller: RunController) -> gr.Blocks:
 
             # --- 3 · Results -----------------------------------------------------------------
             with gr.Tab(t("es", "tab_results"), id="results"):
+                with gr.Row(equal_height=True):
+                    history_pick = gr.Dropdown(
+                        [], label=t("es", "history_pick"), filterable=False, scale=4
+                    )
+                    history_open = gr.Button(t("es", "history_open"), scale=1)
                 refresh = gr.Button(t("es", "load_results"), size="sm")
                 results = gr.HTML(f"<p>{t('es', 'results_empty')}</p>")
+                insights = gr.HTML()
                 with gr.Row(equal_height=False):
                     with gr.Column():
                         rates_chart = gr.Image(show_label=False, interactive=False, visible=False)
@@ -237,6 +251,8 @@ def build_app(controller: RunController) -> gr.Blocks:
                 research = gr.HTML()
                 notes = gr.Markdown()
                 downloads = gr.File(label=t("es", "downloads"), file_count="multiple")
+                with gr.Accordion(t("es", "glossary_title"), open=False) as glossary_box:
+                    glossary = gr.HTML(ui.glossary_html("es"))
 
         with gr.Accordion(t("es", "tech_details"), open=False) as tech_box:
             tech = gr.Markdown(tech_details("es"))
@@ -377,7 +393,7 @@ def build_app(controller: RunController) -> gr.Blocks:
         # --- progress ---------------------------------------------------------------------
         def on_tick(current, current_lang):
             if not current:
-                return gr.skip(), gr.skip(), gr.skip(), gr.skip()
+                return gr.skip(), gr.skip(), gr.skip(), gr.skip(), gr.skip()
             view = controller.view(current)
             waiting = view.phase == "waiting_approval"
             rows = [
@@ -395,11 +411,12 @@ def build_app(controller: RunController) -> gr.Blocks:
             return (
                 ui.progress_html(view, current_lang),
                 gr.update(visible=waiting),
-                ui.draft_html(view.draft, view.objections, current_lang) if waiting else "",
+                ui.safe_markdown(view.draft) if waiting else "",
+                ui.objections_html(view.objections, current_lang) if waiting else "",
                 gr.update(value=rows, headers=headers),
             )
 
-        timer.tick(on_tick, [run_id, lang], [progress, approval, draft, log])
+        timer.tick(on_tick, [run_id, lang], [progress, approval, draft, objections_box, log])
 
         def decide(current, current_lang, text, approved):
             try:
@@ -434,13 +451,38 @@ def build_app(controller: RunController) -> gr.Blocks:
                 ui.answer_html(current_lang, example),
             )
 
+        def history_update(current, current_lang):
+            past = controller.history()
+            choices = [
+                (
+                    f"{item.date} {item.time} · {item.brand} · {item.city} · {item.share:.0%}",
+                    item.run_id,
+                )
+                for item in past
+            ]
+            value = current if any(run == current for _, run in choices) else None
+            return gr.update(choices=choices, value=value)
+
         def render_results(current, current_lang, picked=None):
             """Everything the Results tab shows, computed once per refresh."""
             hidden = gr.update(visible=False)
             if not current:
                 empty = f"<p>{t(current_lang, 'results_empty')}</p>"
                 no_answer = (gr.update(choices=[], value=None), ui.answer_html(current_lang, None))
-                return empty, hidden, hidden, hidden, hidden, "", "", "", None, *no_answer
+                return (
+                    empty,
+                    "",
+                    hidden,
+                    hidden,
+                    hidden,
+                    hidden,
+                    "",
+                    "",
+                    "",
+                    None,
+                    *no_answer,
+                    history_update(current, current_lang),
+                )
             bundle = controller.results(current)
             view = bundle.view
             notes_text = ""
@@ -451,6 +493,7 @@ def build_app(controller: RunController) -> gr.Blocks:
             rates_path, precision_path = controller.charts(current, current_lang)
             return (
                 ui.results_html(current_lang, bundle),
+                ui.insights_html(current_lang, bundle),
                 gr.update(value=rates_path, visible=rates_path is not None),
                 gr.update(value=t(current_lang, "chart_rates_caption"), visible=bool(rates_path)),
                 gr.update(value=precision_path, visible=precision_path is not None),
@@ -462,10 +505,12 @@ def build_app(controller: RunController) -> gr.Blocks:
                 notes_text,
                 list(view.downloads) if view and view.downloads else None,
                 *answer_view(current, current_lang, picked),
+                history_update(current, current_lang),
             )
 
         result_outputs = [
             results,
+            insights,
             rates_chart,
             rates_caption,
             precision_chart,
@@ -476,6 +521,7 @@ def build_app(controller: RunController) -> gr.Blocks:
             downloads,
             example_pick,
             example_html,
+            history_pick,
         ]
         refresh.click(render_results, [run_id, lang, example_pick], result_outputs)
         example_pick.input(
@@ -484,6 +530,18 @@ def build_app(controller: RunController) -> gr.Blocks:
         example_random.click(
             lambda c, lg: answer_view(c, lg), [run_id, lang], [example_pick, example_html]
         )
+
+        def on_open(selected, current_lang):
+            if not selected:
+                return gr.skip(), *(gr.skip() for _ in result_outputs)
+            try:
+                controller.open_run(selected)
+            except KeyError:  # made by the script: no saved state to reopen
+                message = f"<p>{t(current_lang, 'history_unavailable')}</p>"
+                return gr.skip(), message, *(gr.skip() for _ in result_outputs[1:])
+            return selected, *render_results(selected, current_lang)
+
+        history_open.click(on_open, [history_pick, lang], [run_id, *result_outputs])
 
         def on_nav(target, current, current_lang, picked):
             if target == "results":
@@ -544,6 +602,10 @@ def build_app(controller: RunController) -> gr.Blocks:
                 gr.update(value=t(new, "reject")),
                 gr.update(label=t(new, "log")),
                 gr.update(value=t(new, "load_results")),
+                gr.update(label=t(new, "history_pick")),
+                gr.update(value=t(new, "history_open")),
+                gr.update(label=t(new, "glossary_title")),
+                ui.glossary_html(new),
                 gr.update(label=t(new, "tech_details")),
                 tech_details(new),
                 f"<p>{t(new, 'no_run')}</p>" if not current else gr.skip(),
@@ -591,6 +653,10 @@ def build_app(controller: RunController) -> gr.Blocks:
                 reject,
                 log_box,
                 refresh,
+                history_pick,
+                history_open,
+                glossary_box,
+                glossary,
                 tech_box,
                 tech,
                 progress,

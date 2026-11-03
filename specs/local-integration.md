@@ -208,3 +208,6 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
   in Results (random or picked, escaped, tracked brands highlighted, its analysis as chips).
   Checked in the browser: a question naming Glovo is refused; an edited question is asked and
   its real answer can be picked.
+- R11 applied (2026-11-03): friendly failures and round progress, time estimate, measured model in
+  the results label, rule-based actions, glossary, sanitized markdown draft, "My measurements"
+  (tracking.csv + SQLite reopen; script runs say they cannot be reopened). Checked in the browser.

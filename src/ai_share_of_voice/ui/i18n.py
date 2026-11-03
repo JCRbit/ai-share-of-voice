@@ -126,6 +126,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "error": "Algo ha fallado",
         "notes_title": "Ten en cuenta",
         "round_progress": "Ronda {done} de {total}",
+        "time_live": "Tardará hasta unos {minutes} min (se para antes si ya es preciso).",
+        "time_demo": "En modo demostración tarda unos segundos.",
         "fail_quota": "El proveedor de IA ha agotado su cuota gratuita por hoy. Vuelve a "
         "intentarlo "
         "más tarde o usa el modo demostración.",
@@ -164,6 +166,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "history_pick": "Abrir una medición anterior",
         "history_open": "Abrir",
         "history_empty": "Aún no hay mediciones aprobadas.",
+        "history_unavailable": "Esta medición no se puede abrir aquí: se hizo fuera de la app. "
+        "Su informe está en la carpeta runs.",
         "review_title": "Ver y editar las preguntas que se harán a la IA (opcional)",
         "review_help": "Estas son las preguntas que haremos a la IA en cada ronda, como las haría "
         "un cliente. Puedes cambiar el texto, borrar filas o añadir las tuyas (fila nueva al "
@@ -330,6 +334,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "error": "Something went wrong",
         "notes_title": "Keep in mind",
         "round_progress": "Round {done} of {total}",
+        "time_live": "It will take up to about {minutes} min (it stops earlier when precise).",
+        "time_demo": "In demo mode it takes a few seconds.",
         "fail_quota": "The AI provider has used up its free quota for today. Try again later or "
         "use "
         "demo mode.",
@@ -364,6 +370,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "history_pick": "Open a past measurement",
         "history_open": "Open",
         "history_empty": "There are no approved measurements yet.",
+        "history_unavailable": "This measurement cannot be opened here: it was made outside "
+        "the app. Its report is in the runs folder.",
         "review_title": "See and edit the questions the AI will be asked (optional)",
         "review_help": "These are the questions we will ask the AI in every round, as a customer "
         "would. You can change the text, delete rows or add your own (new row at the end). None "
