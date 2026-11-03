@@ -168,10 +168,25 @@ TEXTS: dict[str, dict[str, str]] = {
         "history_empty": "Aún no hay mediciones aprobadas.",
         "chart_trend_title": "¿Cómo evoluciona {brand} con el tiempo?",
         "chart_trend_axis": "% de respuestas que la nombran",
-        "chart_trend_note": "La banda es el margen de error de cada medición.",
+        "chart_trend_note": "La banda es el margen de error; la letra, el conjunto de "
+        "preguntas usado.",
         "trend_caption": "**Cómo leerlo:** cada punto es una medición de {brand} en {city} con la "
         "misma IA ({model}); la banda es su margen de error. Solo se comparan mediciones con la "
-        "misma marca, sector, ciudad e IA.",
+        "misma marca, sector, ciudad e IA. La letra indica qué conjunto de preguntas se usó.",
+        "trend_set_tag": "Preguntas {letter}",
+        "trend_n_questions": "{n} preguntas",
+        "trend_set_changed_same": "Se mantiene en el {after}, pero las preguntas cambiaron "
+        "(Preguntas {before_set} → {after_set}), así que no es una comparación exacta. Para "
+        "comparar, repite la medición con las mismas preguntas.",
+        "trend_set_changed": "Entre estas dos mediciones las preguntas cambiaron (Preguntas "
+        "{before_set} → {after_set}): el paso de {before} a {after} puede venir de las preguntas y "
+        "no de tu marca. Para comparar, repite la medición con las mismas preguntas.",
+        "trend_table_date": "Medición",
+        "trend_table_set": "Preguntas usadas",
+        "trend_table_named": "Te nombra",
+        "trend_table_margin": "Margen de error",
+        "trend_set_summary": "Preguntas {letter} · {n} preguntas",
+        "trend_set_unknown": "Sin registro de preguntas",
         "trend_up": "Desde la medición anterior te nombra más ({before} → {after}) y los márgenes "
         "de error no se solapan: es un cambio claro.",
         "trend_down": "Desde la medición anterior te nombra menos ({before} → {after}) y los "
@@ -386,10 +401,26 @@ TEXTS: dict[str, dict[str, str]] = {
         "history_empty": "There are no approved measurements yet.",
         "chart_trend_title": "How is {brand} doing over time?",
         "chart_trend_axis": "% of answers that name it",
-        "chart_trend_note": "The band is the margin of error of each measurement.",
+        "chart_trend_note": "The band is the margin of error; the letter, the question set used.",
         "trend_caption": "**How to read it:** each point is one measurement of {brand} in {city} "
         "with the same AI ({model}); the band is its margin of error. Only measurements with the "
-        "same brand, sector, city and AI are compared.",
+        "same brand, sector, city and AI are compared. The letter shows which question set was "
+        "used.",
+        "trend_set_tag": "Questions {letter}",
+        "trend_n_questions": "{n} questions",
+        "trend_set_changed_same": "It holds at {after}, but the questions changed "
+        "(Questions {before_set} → {after_set}), so it is not an exact comparison. To compare, "
+        "repeat the measurement with the same questions.",
+        "trend_set_changed": "The questions changed between these two measurements (Questions "
+        "{before_set} → {after_set}): the move from {before} to {after} may come from the "
+        "questions, not from your brand. To compare, repeat the measurement with the same "
+        "questions.",
+        "trend_table_date": "Measurement",
+        "trend_table_set": "Questions used",
+        "trend_table_named": "Names you",
+        "trend_table_margin": "Margin of error",
+        "trend_set_summary": "Questions {letter} · {n} questions",
+        "trend_set_unknown": "No record of the questions",
         "trend_up": "Since the previous measurement the AI names you more ({before} → {after}) and "
         "the margins of error do not overlap: it is a clear change.",
         "trend_down": "Since the previous measurement the AI names you less ({before} → {after}) "

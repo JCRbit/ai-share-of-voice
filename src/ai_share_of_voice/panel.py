@@ -15,6 +15,7 @@ can be reused by later runs of the client and the runs stay comparable.
 """
 
 import csv
+import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -206,3 +207,13 @@ def check_user_panel(
         )
     )
     return panel, []
+
+
+def panel_fingerprint(panel: QuestionPanel) -> str:
+    """A short id of the questions asked, to tell whether two runs asked the same ones.
+
+    It depends only on the question texts, compared without case, extra spaces or order:
+    renumbered ids or a shuffled file are the same set, a changed question is a new one.
+    """
+    texts = sorted(" ".join(question.text.casefold().split()) for question in panel.questions)
+    return hashlib.sha256("\n".join(texts).encode("utf-8")).hexdigest()[:12]

@@ -28,7 +28,7 @@ from ai_share_of_voice.ui import catalog  # noqa: E402
 from ai_share_of_voice.ui import components as ui  # noqa: E402
 from ai_share_of_voice.ui.i18n import event_status, note, stage, t  # noqa: E402
 from ai_share_of_voice.ui.port_guard import PortGuard  # noqa: E402
-from ai_share_of_voice.ui.run_controller import BriefForm, RunController  # noqa: E402
+from ai_share_of_voice.ui.run_controller import BriefForm, RunController, panel_letters  # noqa: E402
 
 RUNS_DIR = ROOT / "runs"
 DATA_DIR = ROOT / "data"
@@ -242,6 +242,7 @@ def build_app(controller: RunController) -> gr.Blocks:
                 # Only with two or more comparable measurements (same brand, place and AI).
                 trend_image = gr.Image(show_label=False, interactive=False, visible=False)
                 trend_text = gr.Markdown(visible=False)
+                trend_table = gr.HTML()
                 example_title = gr.Markdown(f"### {t('es', 'example_title')}")
                 example_help = gr.Markdown(t("es", "example_help"))
                 with gr.Row(equal_height=True):
@@ -484,6 +485,7 @@ def build_app(controller: RunController) -> gr.Blocks:
                     "",
                     "",
                     "",
+                    "",
                     None,
                     *no_answer,
                     history_update(current, current_lang),
@@ -497,9 +499,12 @@ def build_app(controller: RunController) -> gr.Blocks:
                 )
             rates_path, precision_path = controller.charts(current, current_lang)
             trend_path = controller.trend_chart(current, current_lang)
-            trend_note = ""
+            trend_note = trend_rows = ""
+            downloads_list = list(view.downloads) if view and view.downloads else []
             if trend_path is not None:
-                *_, previous, latest = controller.trend(current)
+                points = controller.trend(current)
+                letters = panel_letters(points)
+                *_, previous, latest = points
                 trend_note = ui.trend_caption(
                     current_lang,
                     latest.brand,
@@ -507,7 +512,26 @@ def build_app(controller: RunController) -> gr.Blocks:
                     controller.measured_model(current),
                     (previous.share, previous.ci_low, previous.ci_high),
                     (latest.share, latest.ci_low, latest.ci_high),
+                    previous_set=letters[previous.run_id],
+                    latest_set=letters[latest.run_id],
                 )
+                # Every point traced to the questions it asked, on screen and in trend.csv.
+                trend_rows = ui.trend_table_html(
+                    current_lang,
+                    [
+                        (
+                            f"{item.date} {item.time}",
+                            letters[item.run_id],
+                            item.n_questions,
+                            (item.share, item.ci_low, item.ci_high),
+                        )
+                        for item in points
+                    ],
+                    controller.trend_question_sets(current),
+                )
+                trend_csv = controller.trend_file(current)
+                if trend_csv is not None:
+                    downloads_list.append(trend_csv)
             return (
                 ui.results_html(current_lang, bundle),
                 ui.insights_html(current_lang, bundle),
@@ -519,10 +543,11 @@ def build_app(controller: RunController) -> gr.Blocks:
                 ),
                 gr.update(value=trend_path, visible=trend_path is not None),
                 gr.update(value=trend_note, visible=bool(trend_note)),
+                trend_rows,
                 ui.discovered_html(current_lang, bundle.discovered),
                 ui.research_html(current_lang, bundle.research),
                 notes_text,
-                list(view.downloads) if view and view.downloads else None,
+                downloads_list or None,
                 *answer_view(current, current_lang, picked),
                 history_update(current, current_lang),
             )
@@ -536,6 +561,7 @@ def build_app(controller: RunController) -> gr.Blocks:
             precision_caption,
             trend_image,
             trend_text,
+            trend_table,
             discovered,
             research,
             notes,

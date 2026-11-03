@@ -98,6 +98,10 @@ R12. Trend over time in Results: the client's mention rate across past runs, eac
   look like a change of the brand), up to the run being viewed, last 12 at most. The last change
   is called clear only when the two intervals do not overlap (conservative); otherwise it may be
   chance. Shown only with two or more comparable runs.
+  Every point is traceable to its question set: a fingerprint of the questions asked
+  (`runs/<id>/questions.csv`, by text, without case, spaces or order), shown as a letter (A, B..)
+  under each point, in a table with the questions of each set, and in `trend.csv` (model, set,
+  set id, questions file). A change between different or unknown sets is never called clear.
 R8. (Parked) Discovery-only run for a new client with no known competitors. Needs `Brief` to accept
   fewer than two competitors: schema change, so not in this branch.
 
@@ -221,3 +225,7 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
   form separate trends, as designed. Checked in the browser (ES/EN): two-line date labels,
   "holds at 70%" when the figure does not move. Open: the panel may differ between runs (a
   generated panel); a paired test on the shared questions would be stronger than the overlap rule.
+- R12b (2026-11-03): question sets in the trend (`panel_fingerprint`, `panel_letters`,
+  `trend_file`, `trend_question_sets`). On the real runs the edited-panel runs show as B and C
+  between A runs, and the last step says "not an exact comparison". Checked in the browser.
+

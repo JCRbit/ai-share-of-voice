@@ -40,7 +40,12 @@ from ai_share_of_voice.nodes_real import (
     load_panel,
     make_real_nodes,
 )
-from ai_share_of_voice.panel import generate_panel, read_panel_file, write_panel_file
+from ai_share_of_voice.panel import (
+    generate_panel,
+    panel_fingerprint,
+    read_panel_file,
+    write_panel_file,
+)
 from ai_share_of_voice.research import RESEARCH_FILE_NAME
 from ai_share_of_voice.schemas.analysis import BrandMention, RawAnswer
 from ai_share_of_voice.schemas.base import Contract
@@ -150,6 +155,26 @@ class PastRun:
     ci_low: float
     ci_high: float
     n_answers: int
+    panel_id: str = ""  # fingerprint of the questions asked; "" when the file is missing
+    n_questions: int = 0
+
+
+UNKNOWN_SET = "?"
+TREND_FILE_NAME = "trend.csv"
+
+
+def panel_letters(runs: list[PastRun]) -> dict[str, str]:
+    """Run id -> question-set letter (A, B, ... in order of first use; "?" if unknown)."""
+    by_panel: dict[str, str] = {}
+    letters: dict[str, str] = {}
+    for item in runs:
+        if not item.panel_id:
+            letters[item.run_id] = UNKNOWN_SET
+            continue
+        if item.panel_id not in by_panel:
+            by_panel[item.panel_id] = chr(ord("A") + len(by_panel) % 26)
+        letters[item.run_id] = by_panel[item.panel_id]
+    return letters
 
 
 @dataclass(frozen=True)
@@ -402,6 +427,7 @@ class RunController:
                 ci_low=float(row["ci_low"]),
                 ci_high=float(row["ci_high"]),
                 n_answers=int(row["n_answers"]),
+                **self._panel_of(row["run_id"]),
             )
             for row in rows
         ]
@@ -432,6 +458,67 @@ class RunController:
         ]
         return sorted(same, key=lambda item: item.run_id)[-MAX_TREND_POINTS:]
 
+    def _panel_of(self, run_id: str) -> dict[str, Any]:
+        """The fingerprint and size of the questions a run asked (empty if not saved)."""
+        path = self.runs_dir / run_id / PANEL_FILE_NAME
+        if not path.is_file():
+            return {}
+        panel = read_panel_file(path)
+        return {"panel_id": panel_fingerprint(panel), "n_questions": len(panel.questions)}
+
+    def trend_question_sets(self, run_id: str) -> dict[str, list[str]]:
+        """Letter -> the questions of that set, for every set the trend of ``run_id`` uses."""
+        points = self.trend(run_id)
+        letters = panel_letters(points)
+        sets: dict[str, list[str]] = {}
+        for item in points:
+            letter = letters[item.run_id]
+            if letter != UNKNOWN_SET and letter not in sets:
+                panel = read_panel_file(self.runs_dir / item.run_id / PANEL_FILE_NAME)
+                sets[letter] = [question.text for question in panel.questions]
+        return sets
+
+    def trend_file(self, run_id: str) -> str | None:
+        """``trend.csv``: every point with its model and question set, to trace it back."""
+        points = self.trend(run_id)
+        if len(points) < 2:
+            return None
+        letters = panel_letters(points)
+        path = self.runs_dir / run_id / TREND_FILE_NAME
+        fields = ["run_id", "date", "time", "model", "question_set", "question_set_id"]
+        fields += [
+            "n_questions",
+            "questions_file",
+            "n_answers",
+            "mention_rate",
+            "ci_low",
+            "ci_high",
+        ]
+        with path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fields)
+            writer.writeheader()
+            for item in points:
+                writer.writerow(
+                    {
+                        "run_id": item.run_id,
+                        "date": item.date,
+                        "time": item.time,
+                        "model": _measured_model(self.runs_dir / item.run_id),
+                        "question_set": letters[item.run_id],
+                        "question_set_id": item.panel_id,
+                        "n_questions": item.n_questions,
+                        # Relative to the runs folder, so the file still works if it moves.
+                        "questions_file": f"{item.run_id}/{PANEL_FILE_NAME}"
+                        if item.panel_id
+                        else "",
+                        "n_answers": item.n_answers,
+                        "mention_rate": f"{item.share:.4f}",
+                        "ci_low": f"{item.ci_low:.4f}",
+                        "ci_high": f"{item.ci_high:.4f}",
+                    }
+                )
+        return str(path)
+
     def trend_chart(self, run_id: str, lang: str) -> str | None:
         """Path of the trend chart in ``lang``, or ``None`` with fewer than two runs."""
         points = self.trend(run_id)
@@ -442,9 +529,13 @@ class RunController:
             axis=t(lang, "chart_trend_axis"),
             note=t(lang, "chart_trend_note"),
         )
+        letters = panel_letters(points)
         rows = [
-            # Date over time on two lines, so a year of labels does not overlap.
-            TrendPoint(f"{item.date[5:]}\n{item.time}", (item.share, item.ci_low, item.ci_high))
+            # Date, time and question set on separate lines, so a year of labels fits.
+            TrendPoint(
+                f"{item.date[5:]}\n{item.time}\n({letters[item.run_id]})",
+                (item.share, item.ci_low, item.ci_high),
+            )
             for item in points
         ]
         path = self.runs_dir / run_id / CHARTS_FOLDER / f"app_trend_{lang}.png"

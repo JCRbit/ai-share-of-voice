@@ -514,12 +514,79 @@ def objections_html(objections: tuple[str, ...], lang: str) -> str:
 
 
 def trend_caption(
-    lang: str, brand: str, city: str, model: str, previous: Rate, latest: Rate
+    lang: str,
+    brand: str,
+    city: str,
+    model: str,
+    previous: Rate,
+    latest: Rate,
+    *,
+    previous_set: str = "A",
+    latest_set: str = "A",
 ) -> str:
-    """How to read the trend, and whether the last change is clear or may be chance."""
+    """How to read the trend, and whether the last change is clear or may be chance.
+
+    A change is only judged between runs that asked the same questions: otherwise the
+    questions, not the brand, may explain it (an unknown set counts as a change).
+    """
+    how = t(lang, "trend_caption", brand=brand, city=city, model=model or "—")
+    if previous_set != latest_set or "?" in (previous_set, latest_set):
+        same_figure = _pct(previous[0]) == _pct(latest[0])
+        verdict = t(
+            lang,
+            "trend_set_changed_same" if same_figure else "trend_set_changed",
+            before_set=previous_set,
+            after_set=latest_set,
+            before=_pct(previous[0]),
+            after=_pct(latest[0]),
+        )
+        return f"{how}\n\n{verdict}"
     change = compare(previous, latest)
     if change == "unclear" and _pct(previous[0]) == _pct(latest[0]):
         change = "same"  # "from 70% to 70%" reads as a mistake
     verdict = t(lang, f"trend_{change}", before=_pct(previous[0]), after=_pct(latest[0]))
-    how = t(lang, "trend_caption", brand=brand, city=city, model=model or "—")
     return f"{how}\n\n{verdict}"
+
+
+def trend_table_html(
+    lang: str,
+    rows: list[tuple[str, str, int, Rate]],
+    sets: dict[str, list[str]],
+) -> str:
+    """Every trend point with its question set, and the questions of each set to check them.
+
+    ``rows`` are (date and time, set letter, number of questions, mention rate).
+    """
+    if not rows:
+        return ""
+    head = "".join(
+        f"<th>{escape(t(lang, key))}</th>"
+        for key in (
+            "trend_table_date",
+            "trend_table_set",
+            "trend_table_named",
+            "trend_table_margin",
+        )
+    )
+    body = "".join(
+        f"<tr><td>{escape(when)}</td>"
+        f"<td>{escape(t(lang, 'trend_set_tag', letter=letter))}"
+        f"<div class='sov-muted'>{escape(t(lang, 'trend_n_questions', n=n))}</div></td>"
+        f"<td><b>{_pct(rate[0])}</b></td>"
+        f"<td class='sov-muted'>{escape(t(lang, 'margin', low=_pct(rate[1]), high=_pct(rate[2])))}"
+        "</td></tr>"
+        for when, letter, n, rate in rows
+    )
+    details = "".join(
+        f"<details><summary>{escape(t(lang, 'trend_set_summary', letter=letter, n=len(texts)))}"
+        f"</summary><ol class='sov-list'>"
+        + "".join(f"<li>{escape(text)}</li>" for text in texts)
+        + "</ol></details>"
+        for letter, texts in sets.items()
+    )
+    if any(letter == "?" for _, letter, _, _ in rows):
+        details += f"<p class='sov-muted'>? = {escape(t(lang, 'trend_set_unknown'))}</p>"
+    return (
+        f'<table class="sov-table"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>'
+        f"{details}"
+    )
