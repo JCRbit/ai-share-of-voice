@@ -14,6 +14,7 @@ from html import escape
 from urllib.parse import urlsplit
 
 from ai_share_of_voice.panel import PanelProblem
+from ai_share_of_voice.stats.trend import Rate, compare
 from ai_share_of_voice.ui.i18n import kind, stage, t
 from ai_share_of_voice.ui.run_controller import AnswerExample, ResultsBundle, RunView
 
@@ -510,3 +511,15 @@ def objections_html(objections: tuple[str, ...], lang: str) -> str:
         return f"<p>✔ {escape(t(lang, 'no_objections'))}</p>"
     items = "".join(f"<li>{escape(item)}</li>" for item in objections)
     return f"<p><b>{escape(t(lang, 'objections'))}</b></p><ul class='sov-list'>{items}</ul>"
+
+
+def trend_caption(
+    lang: str, brand: str, city: str, model: str, previous: Rate, latest: Rate
+) -> str:
+    """How to read the trend, and whether the last change is clear or may be chance."""
+    change = compare(previous, latest)
+    if change == "unclear" and _pct(previous[0]) == _pct(latest[0]):
+        change = "same"  # "from 70% to 70%" reads as a mistake
+    verdict = t(lang, f"trend_{change}", before=_pct(previous[0]), after=_pct(latest[0]))
+    how = t(lang, "trend_caption", brand=brand, city=city, model=model or "—")
+    return f"{how}\n\n{verdict}"

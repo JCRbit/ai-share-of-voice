@@ -50,8 +50,11 @@ from ai_share_of_voice.stats.charts import (
     BrandRates,
     PrecisionChartText,
     RatesChartText,
+    TrendChartText,
+    TrendPoint,
     precision_chart,
     rates_chart,
+    trend_chart,
 )
 from ai_share_of_voice.stats.stopping import should_stop
 from ai_share_of_voice.tools.mcp_sources_client import McpSourcesClient
@@ -128,6 +131,9 @@ class RunView(Contract):
     max_rounds: int = 0
     failure_kind: str | None = None  # why a partial run closed (errors.FailureKind)
     failure_reason: str | None = None  # technical text, for the log only
+
+
+MAX_TREND_POINTS = 12  # a year of monthly measurements; more would not be readable
 
 
 @dataclass(frozen=True)
@@ -400,6 +406,52 @@ class RunController:
             for row in rows
         ]
         return sorted(past, key=lambda item: item.run_id, reverse=True)
+
+    def trend(self, run_id: str) -> list[PastRun]:
+        """Approved runs comparable with ``run_id``, oldest first, up to and including it.
+
+        Comparable means the same brand, sector and city, and the same measured AI: a
+        different model answers differently, so mixing models would show a change that
+        comes from the model, not from the brand.
+        """
+        past = {item.run_id: item for item in self.history()}
+        current = past.get(run_id)
+        if current is None:
+            return []
+        model = _measured_model(self.runs_dir / run_id)
+
+        def key(item: PastRun) -> tuple[str, str, str]:
+            return item.brand.casefold(), item.sector.casefold(), item.city.casefold()
+
+        same = [
+            item
+            for item in past.values()
+            if item.run_id <= run_id
+            and key(item) == key(current)
+            and _measured_model(self.runs_dir / item.run_id) == model
+        ]
+        return sorted(same, key=lambda item: item.run_id)[-MAX_TREND_POINTS:]
+
+    def trend_chart(self, run_id: str, lang: str) -> str | None:
+        """Path of the trend chart in ``lang``, or ``None`` with fewer than two runs."""
+        points = self.trend(run_id)
+        if len(points) < 2:
+            return None
+        text = TrendChartText(
+            title=t(lang, "chart_trend_title", brand=points[-1].brand),
+            axis=t(lang, "chart_trend_axis"),
+            note=t(lang, "chart_trend_note"),
+        )
+        rows = [
+            # Date over time on two lines, so a year of labels does not overlap.
+            TrendPoint(f"{item.date[5:]}\n{item.time}", (item.share, item.ci_low, item.ci_high))
+            for item in points
+        ]
+        path = self.runs_dir / run_id / CHARTS_FOLDER / f"app_trend_{lang}.png"
+        return str(trend_chart(rows, path, text))
+
+    def measured_model(self, run_id: str) -> str:
+        return _measured_model(self.runs_dir / run_id)
 
     def open_run(self, run_id: str) -> None:
         """Reopen a past run from its SQLite checkpoint, so its results can be shown."""

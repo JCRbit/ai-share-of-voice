@@ -166,6 +166,20 @@ TEXTS: dict[str, dict[str, str]] = {
         "history_pick": "Abrir una medición anterior",
         "history_open": "Abrir",
         "history_empty": "Aún no hay mediciones aprobadas.",
+        "chart_trend_title": "¿Cómo evoluciona {brand} con el tiempo?",
+        "chart_trend_axis": "% de respuestas que la nombran",
+        "chart_trend_note": "La banda es el margen de error de cada medición.",
+        "trend_caption": "**Cómo leerlo:** cada punto es una medición de {brand} en {city} con la "
+        "misma IA ({model}); la banda es su margen de error. Solo se comparan mediciones con la "
+        "misma marca, sector, ciudad e IA.",
+        "trend_up": "Desde la medición anterior te nombra más ({before} → {after}) y los márgenes "
+        "de error no se solapan: es un cambio claro.",
+        "trend_down": "Desde la medición anterior te nombra menos ({before} → {after}) y los "
+        "márgenes de error no se solapan: es un cambio claro.",
+        "trend_same": "Se mantiene en el {after}, igual que en la medición anterior.",
+        "trend_unclear": "Desde la medición anterior ha pasado de {before} a {after}, pero los "
+        "márgenes de error se solapan: el cambio puede deberse al azar. Repite la medición para "
+        "confirmarlo.",
         "history_unavailable": "Esta medición no se puede abrir aquí: se hizo fuera de la app. "
         "Su informe está en la carpeta runs.",
         "review_title": "Ver y editar las preguntas que se harán a la IA (opcional)",
@@ -370,6 +384,19 @@ TEXTS: dict[str, dict[str, str]] = {
         "history_pick": "Open a past measurement",
         "history_open": "Open",
         "history_empty": "There are no approved measurements yet.",
+        "chart_trend_title": "How is {brand} doing over time?",
+        "chart_trend_axis": "% of answers that name it",
+        "chart_trend_note": "The band is the margin of error of each measurement.",
+        "trend_caption": "**How to read it:** each point is one measurement of {brand} in {city} "
+        "with the same AI ({model}); the band is its margin of error. Only measurements with the "
+        "same brand, sector, city and AI are compared.",
+        "trend_up": "Since the previous measurement the AI names you more ({before} → {after}) and "
+        "the margins of error do not overlap: it is a clear change.",
+        "trend_down": "Since the previous measurement the AI names you less ({before} → {after}) "
+        "and the margins of error do not overlap: it is a clear change.",
+        "trend_same": "It holds at {after}, the same as in the previous measurement.",
+        "trend_unclear": "Since the previous measurement it went from {before} to {after}, but the "
+        "margins of error overlap: the change may be chance. Repeat the measurement to confirm it.",
         "history_unavailable": "This measurement cannot be opened here: it was made outside "
         "the app. Its report is in the runs folder.",
         "review_title": "See and edit the questions the AI will be asked (optional)",

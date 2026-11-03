@@ -239,6 +239,9 @@ def build_app(controller: RunController) -> gr.Blocks:
                         precision_caption = gr.Markdown(
                             t("es", "chart_precision_caption"), visible=False
                         )
+                # Only with two or more comparable measurements (same brand, place and AI).
+                trend_image = gr.Image(show_label=False, interactive=False, visible=False)
+                trend_text = gr.Markdown(visible=False)
                 example_title = gr.Markdown(f"### {t('es', 'example_title')}")
                 example_help = gr.Markdown(t("es", "example_help"))
                 with gr.Row(equal_height=True):
@@ -476,6 +479,8 @@ def build_app(controller: RunController) -> gr.Blocks:
                     hidden,
                     hidden,
                     hidden,
+                    hidden,
+                    hidden,
                     "",
                     "",
                     "",
@@ -491,6 +496,18 @@ def build_app(controller: RunController) -> gr.Blocks:
                     f"- {note(current_lang, item)}" for item in view.notes
                 )
             rates_path, precision_path = controller.charts(current, current_lang)
+            trend_path = controller.trend_chart(current, current_lang)
+            trend_note = ""
+            if trend_path is not None:
+                *_, previous, latest = controller.trend(current)
+                trend_note = ui.trend_caption(
+                    current_lang,
+                    latest.brand,
+                    latest.city,
+                    controller.measured_model(current),
+                    (previous.share, previous.ci_low, previous.ci_high),
+                    (latest.share, latest.ci_low, latest.ci_high),
+                )
             return (
                 ui.results_html(current_lang, bundle),
                 ui.insights_html(current_lang, bundle),
@@ -500,6 +517,8 @@ def build_app(controller: RunController) -> gr.Blocks:
                 gr.update(
                     value=t(current_lang, "chart_precision_caption"), visible=bool(precision_path)
                 ),
+                gr.update(value=trend_path, visible=trend_path is not None),
+                gr.update(value=trend_note, visible=bool(trend_note)),
                 ui.discovered_html(current_lang, bundle.discovered),
                 ui.research_html(current_lang, bundle.research),
                 notes_text,
@@ -515,6 +534,8 @@ def build_app(controller: RunController) -> gr.Blocks:
             rates_caption,
             precision_chart,
             precision_caption,
+            trend_image,
+            trend_text,
             discovered,
             research,
             notes,

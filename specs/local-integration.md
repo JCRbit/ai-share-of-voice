@@ -92,7 +92,12 @@ R11. Product review (2026-11-03), as a user and as a PM. Applied now, by impact:
   - A short glossary in Results (named, recommended, margin of error, dated sample).
   - The draft is shown as formatted text, sanitized: no HTML, no images (tracking pixels).
   - "My measurements": past runs from `tracking.csv`, reopened from the SQLite checkpoints.
-  Left for later: trend chart over time, PDF export, alerts, more countries.
+  Left for later: PDF export, alerts, more countries (the trend chart is R12).
+R12. Trend over time in Results: the client's mention rate across past runs, each with its
+  interval, only for runs with the same brand, sector, city and measured AI (a new model would
+  look like a change of the brand), up to the run being viewed, last 12 at most. The last change
+  is called clear only when the two intervals do not overlap (conservative); otherwise it may be
+  chance. Shown only with two or more comparable runs.
 R8. (Parked) Discovery-only run for a new client with no known competitors. Needs `Brief` to accept
   fewer than two competitors: schema change, so not in this branch.
 
@@ -211,3 +216,8 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
 - R11 applied (2026-11-03): friendly failures and round progress, time estimate, measured model in
   the results label, rule-based actions, glossary, sanitized markdown draft, "My measurements"
   (tracking.csv + SQLite reopen; script runs say they cannot be reopened). Checked in the browser.
+- R12 (2026-11-03): trend chart and caption (`stats/trend.py` compare rule, `trend_chart`,
+  `RunController.trend`). On the real runs folder the simulated runs and the gpt-oss-20b runs
+  form separate trends, as designed. Checked in the browser (ES/EN): two-line date labels,
+  "holds at 70%" when the figure does not move. Open: the panel may differ between runs (a
+  generated panel); a paired test on the shared questions would be stronger than the overlap rule.

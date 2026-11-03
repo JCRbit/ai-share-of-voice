@@ -291,3 +291,54 @@ def precision_chart(
     figure.text(0.5, 0.01, text.note, ha="center", fontsize=8, color="#555555")
     figure.tight_layout(rect=(0, 0.05, 1, 1))
     return _save(figure, path)
+
+
+@dataclass(frozen=True)
+class TrendPoint:
+    """One approved measurement of the client brand: a short label and its mention rate."""
+
+    label: str
+    rate: Rate
+
+
+@dataclass(frozen=True)
+class TrendChartText:
+    title: str
+    axis: str
+    note: str
+
+
+def _trend_figure(points: Sequence[TrendPoint], text: TrendChartText) -> plt.Figure:
+    if len(points) < 2:
+        raise ValueError("a trend needs at least two measurements")
+    positions = list(range(len(points)))
+    estimates = [point.rate[0] for point in points]
+    figure, axes = plt.subplots(figsize=(7.5, 4.2))
+    axes.fill_between(
+        positions,
+        [point.rate[1] for point in points],
+        [point.rate[2] for point in points],
+        color=_CLIENT[1],
+        alpha=0.35,
+    )
+    axes.plot(positions, estimates, marker="o", color=_CLIENT[0], linewidth=2)
+    for x, y in zip(positions, estimates, strict=True):
+        axes.annotate(
+            f"{y:.0%}", (x, y), textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8
+        )
+    axes.set_xticks(positions, [point.label for point in points])
+    axes.set_ylim(0.0, 1.05)
+    axes.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
+    axes.set_ylabel(text.axis)
+    axes.set_title(text.title, loc="left", fontweight="bold", pad=12)
+    axes.grid(alpha=0.25)
+    axes.spines[["top", "right"]].set_visible(False)
+    figure.text(0.5, 0.01, text.note, ha="center", fontsize=8, color="#555555")
+    figure.tight_layout(rect=(0, 0.05, 1, 1))
+    return figure
+
+
+def trend_chart(points: Sequence[TrendPoint], path: Path, text: TrendChartText) -> Path:
+    """Mention rate of the client brand across measurements, oldest first, with its band."""
+    path = _check_png(path)
+    return _save(_trend_figure(points, text), path)
