@@ -8,7 +8,6 @@ Project III, Module V (AI Engineering) — AgentSquad: multi-agent system with C
 
 ## Status
 
-
 C1 shared contracts and the A1 LangGraph skeleton are implemented; the graph still uses simulated nodes for several steps. D1 metrics and intervals, the D2 stopping policy, and the D3 statistics tool and chart functions exist at module level, but the real stopping policy and statistics calculations are not yet wired into the end-to-end graph/report path. Supporting modules for mention extraction, agent specifications, failure handling, and reporting are also present, but they are not all connected to a real end-to-end run.
 
 Checkpointing is configurable. A persistent checkpointer is needed to resume a human pause across process restarts. See [`docs/architecture.md`](docs/architecture.md) for module-level status and [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) for phases, owners and tasks.
