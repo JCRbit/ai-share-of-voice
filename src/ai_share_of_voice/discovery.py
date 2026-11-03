@@ -191,6 +191,30 @@ def discover_businesses(
     return DiscoveryRecord(**ids, ok=True, businesses=tuple(kept.values()), dropped=tuple(dropped))
 
 
+def _plan_owners(records: Sequence[DiscoveryRecord]) -> dict[str, str]:
+    """Plan key -> the business it belongs to, when that business is named in the run.
+
+    "Deliveroo Plus" is Deliveroo: an answer that names the plan names the business, and
+    ranking them apart would split its mentions. Only plans are merged, into the longest
+    business whose name starts the plan's name as whole words ("Uber Taxi" is not "Uber").
+    """
+    untracked = [
+        business
+        for record in records
+        for business in record.businesses
+        if business.tracked_brand is None
+    ]
+    names = {business.key for business in untracked}
+    owners: dict[str, str] = {}
+    for business in untracked:
+        if business.kind != BusinessKind.PRODUCT_OR_PLAN:
+            continue
+        candidates = [key for key in names if business.key.startswith(f"{key} ")]
+        if candidates:
+            owners[business.key] = max(candidates, key=len)
+    return owners
+
+
 def discovery_ranking(
     records: Iterable[DiscoveryRecord],
     *,
@@ -211,16 +235,22 @@ def discovery_ranking(
     answers_per_question = Counter(record.question_id for record in usable)
     denominators = np.array([answers_per_question[qid] for qid in questions], dtype=float)
 
+    owners = _plan_owners(usable)
     hits: dict[str, Counter[str]] = defaultdict(Counter)  # key -> question -> answers
     names: dict[str, Counter[str]] = defaultdict(Counter)
     kinds: dict[str, Counter[BusinessKind]] = defaultdict(Counter)
     for record in usable:
+        counted: set[str] = set()  # each answer counts a business once, plans included
         for business in record.businesses:
             if business.tracked_brand is not None:
                 continue
-            hits[business.key][record.question_id] += 1
-            names[business.key][business.name] += 1
-            kinds[business.key][business.kind] += 1
+            key = owners.get(business.key, business.key)
+            if key not in counted:
+                counted.add(key)
+                hits[key][record.question_id] += 1
+            if key == business.key:  # a plan adds its answer, not its name or kind
+                names[key][business.name] += 1
+                kinds[key][business.kind] += 1
 
     ranking = []
     for key, by_question in hits.items():

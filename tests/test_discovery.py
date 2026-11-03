@@ -14,7 +14,7 @@ from ai_share_of_voice.errors import ToolFailure
 from ai_share_of_voice.exceptions import BudgetExceeded
 from ai_share_of_voice.llm_client import Budget, SimulatedClient
 from ai_share_of_voice.schemas.analysis import RawAnswer
-from ai_share_of_voice.schemas.brief import BrandSpec, Brief
+from ai_share_of_voice.schemas.brief import BrandSpec, Brief, normalize_brand_name
 from ai_share_of_voice.stats.metrics import wilson_interval
 
 BRIEF = Brief(
@@ -258,3 +258,47 @@ def test_one_question_is_not_enough_evidence_for_a_suggestion():
     assert item.rate == pytest.approx(3 / 7)
     assert item.n_questions_with == 1
     assert not item.suggested
+
+
+# --- a plan of a business counts as the business (found in a live run) --------------------
+
+
+def plan_record(qid, *names_and_kinds):
+    return DiscoveryRecord(
+        response_id=f"b000-{qid}",
+        question_id=qid,
+        batch_index=0,
+        ok=True,
+        businesses=tuple(
+            DiscoveredBusiness(name=name, key=normalize_brand_name(name), kind=kind)
+            for name, kind in names_and_kinds
+        ),
+    )
+
+
+def test_a_plan_of_a_business_is_counted_as_that_business():
+    records = [
+        plan_record("q01", ("Deliveroo", APP)),
+        plan_record("q02", ("Deliveroo Plus", PRODUCT)),
+        plan_record("q03", ("Deliveroo", APP), ("Deliveroo Plus", PRODUCT)),
+        plan_record("q04"),
+    ]
+
+    (deliveroo,) = discovery_ranking(records)
+
+    assert (deliveroo.name, deliveroo.kind) == ("Deliveroo", APP)
+    assert deliveroo.n_answers_with == 3  # q03 names both, but it is one answer
+
+
+def test_a_longer_name_that_is_not_a_plan_stays_apart():
+    records = [plan_record("q01", ("Uber", APP)), plan_record("q02", ("Uber Taxi", APP))]
+
+    assert {item.name for item in discovery_ranking(records)} == {"Uber", "Uber Taxi"}
+
+
+def test_a_plan_whose_business_was_never_named_stays_as_it_is():
+    records = [plan_record("q01", ("Deliveroo Plus", PRODUCT)), plan_record("q02")]
+
+    (plan,) = discovery_ranking(records)
+
+    assert plan.name == "Deliveroo Plus"

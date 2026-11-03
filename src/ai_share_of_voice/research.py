@@ -62,11 +62,23 @@ def _top_businesses(run_dir: Path, limit: int) -> list[tuple[str, float]]:
     return [(row["name"], float(row["rate"])) for row in rows[:limit]]
 
 
-def _check(client: McpSourcesClient, name: str, rate: float, city: str) -> BusinessCheck:
+def _place_terms(place: str) -> list[str]:
+    """ "Valencia, España" -> ["valencia", "espana"]: any of them ties a result to the place."""
+    return [normalize_brand_name(part.strip()) for part in place.split(",") if part.strip()]
+
+
+def _check(client: McpSourcesClient, name: str, rate: float, place: str) -> BusinessCheck:
+    """Evidence is a result that names the business and the city or the country.
+
+    The name alone is not enough: a live run took Deliveroo's generic page as evidence in
+    Madrid, where it does not operate. The address counts as text ("/es/valencia").
+    """
     key = normalize_brand_name(name)
-    for hit in client.search_sources(f'"{name}" {city}', max_results=HITS_PER_CHECK):
-        evidence = normalize_brand_name(f"{hit.title} {hit.snippet}")
-        if key in evidence:
+    terms = _place_terms(place)
+    for hit in client.search_sources(f'"{name}" {place}', max_results=HITS_PER_CHECK):
+        text = normalize_brand_name(f"{hit.title} {hit.snippet}")
+        where = f"{text} {normalize_brand_name(str(hit.url))}"
+        if key in text and any(term in where for term in terms):
             return BusinessCheck(name, rate, found_online=True, evidence_url=str(hit.url))
     return BusinessCheck(name, rate, found_online=False)
 

@@ -126,14 +126,18 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
 
 ## 5. Decisions
 
-- D-a Provider: **Groq** (free tier, OpenAI-compatible, has a vision model). Decided 2026-11-02.
-  Defaults in `config.py`: subject `llama-3.3-70b-versatile`, agent `openai/gpt-oss-120b`,
-  vision `meta-llama/llama-4-scout-17b-16e-instruct`. Team decision 3 is still pending upstream.
+- D-a Provider: **Groq** (free tier, OpenAI-compatible). Decided 2026-11-02, updated 2026-11-03:
+  Groq retired the Llama 3.3 and Llama 4 models, so the defaults in `config.py` are subject
+  `openai/gpt-oss-20b` and agent `openai/gpt-oss-120b`. Groq has no vision model now: vision
+  runs on Gemini (`VISION_PROVIDER=gemini`, `gemini-3.6-flash`). The Groq vision default in
+  `config.py` still names the retired `llama-4-scout`; without `VISION_PROVIDER=gemini` the
+  vision step fails and is skipped. Team decision 3 is still pending upstream.
 - D-d Subject model while developing: **Groq `openai/gpt-oss-20b`** (free, high limits). Decided
   2026-11-02 after the Gemini free tier capped `gemini-3.6-flash` at 20 requests/day. Gemini stays
   for vision (few calls per run) and for the final measurement. Dev runs are functional checks,
   not measurements: the subject and the agents are the same model family.
-- D-b Search backend: `none` (fixtures) by default; `tavily` optional. Open.
+- D-b Search backend: `none` (fixtures) by default; **Tavily** for live runs. Decided 2026-11-03
+  after DuckDuckGo answered with a bot challenge (not bypassed).
 - D-c Cap per run: 0.50 USD in `.env.example`. Proposed.
 
 ## 6. Log
@@ -228,4 +232,8 @@ R8. (Parked) Discovery-only run for a new client with no known competitors. Need
 - R12b (2026-11-03): question sets in the trend (`panel_fingerprint`, `panel_letters`,
   `trend_file`, `trend_question_sets`). On the real runs the edited-panel runs show as B and C
   between A runs, and the last step says "not an exact comparison". Checked in the browser.
+- Open items closed (2026-11-03): the business check needs the city or the country in the
+  result (title, snippet or address), not only the name; a plan ("Deliveroo Plus") is counted as
+  its business when that business is named in the run. Spec D-a and D-b brought up to date.
+  Still open: T9 (needs a capacity plan) and a live check of the Skeptic run-facts fix (quota).
 

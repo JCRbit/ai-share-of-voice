@@ -185,3 +185,44 @@ def test_a_location_hint_disambiguates_the_city(tmp_path):
         "Zara Valencia, España clothing stores",
         '"Bershka" Valencia, España',
     ]
+
+
+# --- evidence must be about the place (found in a live run) ---------------------------------
+
+
+def test_evidence_must_name_the_city_or_the_country(tmp_path):
+    # A live run took Deliveroo's generic page as evidence in Madrid, where it does not operate.
+    write_ranking(
+        tmp_path,
+        {"name": "Deliveroo", "kind": "app_or_platform", "rate": "0.3", "suggested": "True"},
+        {"name": "Bershka", "kind": "store_or_restaurant", "rate": "0.2", "suggested": "True"},
+        {"name": "Mercadona", "kind": "store_or_restaurant", "rate": "0.1", "suggested": "False"},
+    )
+    search = ScriptedSearch(
+        {
+            '"Deliveroo"': [
+                hit("https://deliveroo.co.uk/", "Deliveroo", "Food delivery in London")
+            ],
+            '"Bershka"': [hit("https://bershka.example.com/es/", "Bershka", "Tiendas en España")],
+            '"Mercadona"': [hit("https://example.com/valencia/mercadona", "Supermercado")],
+        }
+    )
+    with sources_factory(search)() as client:
+        result = research(BRIEF, tmp_path, client, location="Valencia, España")
+
+    checks = {check.name: check for check in result.checks}
+    assert not checks["Deliveroo"].found_online  # names the business, not the place
+    assert checks["Bershka"].found_online  # the country is enough
+    assert not checks["Mercadona"].found_online  # the place alone, without the name, is not
+
+
+def test_the_city_in_the_address_counts_as_the_place(tmp_path):
+    write_ranking(
+        tmp_path,
+        {"name": "Bershka", "kind": "store_or_restaurant", "rate": "0.3", "suggested": "True"},
+    )
+    search = ScriptedSearch({'"Bershka"': [hit(SHOP, "Bershka - tienda oficial")]})
+    with sources_factory(search)() as client:
+        (check,) = research(BRIEF, tmp_path, client).checks
+
+    assert check.found_online and check.evidence_url == SHOP  # .../valencia
