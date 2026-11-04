@@ -1,6 +1,10 @@
 """Exceptions shared across the package."""
 
 
+class ConfigurationError(Exception):
+    """The environment is missing a value or has an invalid one (for example, no API key)."""
+
+
 class BudgetExceeded(Exception):
     """Raised by the model client when a call would exceed the spending cap."""
 
