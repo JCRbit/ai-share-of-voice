@@ -2,9 +2,11 @@
 
 ``complete(prompt, schema)`` returns the parsed object and the usage of the call.
 It raises ``ai_share_of_voice.exceptions.BudgetExceeded`` when the spending cap
-would be exceeded.
+would be exceeded. ``complete_with_image`` is the same call with one image attached.
 """
 
+import base64
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from pydantic import BaseModel, Field
@@ -31,4 +33,26 @@ class ModelClient(Protocol):
 
     def complete[T: BaseModel](self, prompt: str, schema: type[T]) -> tuple[T, Usage]:
         """Run ``prompt`` and return the answer parsed as ``schema`` with its usage."""
+        ...
+
+
+@dataclass(frozen=True)
+class ImagePart:
+    """A validated image ready to send to a model."""
+
+    media_type: str
+    data: bytes = field(repr=False)
+
+    def data_uri(self) -> str:
+        """The image as a ``data:`` URI, the form OpenAI-compatible APIs accept."""
+        return f"data:{self.media_type};base64,{base64.b64encode(self.data).decode('ascii')}"
+
+
+class VisionModel(Protocol):
+    """A model that can look at one image; the budgeted clients fit this signature."""
+
+    def complete_with_image[T: BaseModel](
+        self, prompt: str, image: ImagePart, schema: type[T]
+    ) -> tuple[T, Usage]:
+        """Run ``prompt`` on ``image`` and return the answer parsed as ``schema`` with usage."""
         ...
