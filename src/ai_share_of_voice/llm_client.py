@@ -39,12 +39,12 @@ import urllib.request
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
-from email.utils import parsedate_to_datetime
-from filelock import FileLock
 
+from filelock import FileLock
 from pydantic import BaseModel, ValidationError
 
 from ai_share_of_voice.errors import ToolFailure
@@ -535,7 +535,7 @@ def _parse_retry_after(value: str | None) -> float | None:
             retry_at = parsedate_to_datetime(value)
             if retry_at.tzinfo is None:
                 return None
-            delay = (retry_at - datetime.now(timezone.utc)).total_seconds()
+            delay = (retry_at - datetime.now(UTC)).total_seconds()
         except (TypeError, ValueError, OverflowError):
             return None
 
