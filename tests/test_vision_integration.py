@@ -3,15 +3,15 @@ import json
 from pathlib import Path
 
 import pytest
+
+from ai_share_of_voice.errors import ToolFailure
+from ai_share_of_voice.exceptions import BudgetExceeded, ConfigurationError
 from ai_share_of_voice.llm_client import (
     GroqClient,
     Pricing,
     SimulatedClient,
     client_from_env,
 )
-
-from ai_share_of_voice.errors import ToolFailure
-from ai_share_of_voice.exceptions import BudgetExceeded, ConfigurationError
 from ai_share_of_voice.schemas.llm import ImagePart
 from ai_share_of_voice.schemas.vision import Confidence, VisionRequest
 from ai_share_of_voice.vision import VisionJudgement, VisionTool, analyze_image
