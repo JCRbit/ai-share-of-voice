@@ -13,7 +13,7 @@ D1 brand metrics, D2 deterministic stopping policy, and D3 statistics-tool and c
 ```mermaid
 flowchart LR
     A[Brief<br/>validated form] --> B[questions]
-    B --> C[sampling<br/>real model client integration]
+    B --> C[sampling<br/>I3 client implemented; graph integration pending]
     C --> D[metrics<br/>D1 module implemented]
     D --> E{stop?<br/>D2 policy implemented}
     E -- no, another batch --> C
@@ -47,6 +47,7 @@ Two implementation limits are particularly important:
 
 - **Agent specifications and factory are implemented; full graph integration must be assessed separately.** The seven agent specifications and factory are defined in `agents/specs.py` and `agents/factory.py`. Their existence does not mean that all seven agents are invoked by the active graph. The graph's core workflow still contains simulated behavior where real integrations have not been completed.
 - **Model-client enforcement is not automatically inherited by CrewAI.** The factory accepts an explicit `llm`, but this does not guarantee that every model call passes through `ModelClient` or its spending-cap enforcement. The cap protects only calls routed through a client that actually enforces it. A suitable adapter and verified call-path coverage are required before claiming end-to-end budget enforcement.
+- **I3 model client is implemented and locally tested.** `llm_client.py` provides simulated and Groq-backed clients, usage logging, pre-call budget checks, and run/person spending caps. This module-level implementation does not prove that graph sampling or CrewAI calls use the client. Pre-call cost estimates are not billing ceilings: actual provider charges may exceed them. The person cap is not atomic across independent processes or client instances sharing the same usage log.
 
 ## Agents
 
@@ -82,10 +83,10 @@ These constraints reduce the potential for excessive agency, but they do not eli
 | Statistics tool and charts | `tools/stats_tool.py`, `stats/charts.py` | Implemented (D3) | Tool and chart functions exist; integration with the agent, graph, and final report remains a separate requirement. |
 | Own tool with a validated schema | `extract_brand_mentions` | Implemented | Pydantic input schema; deterministic code performs mention matching, while model-assisted classification may assess recommendation and tone. |
 | Skeptic checks | `agents/skeptic_checks.py`, `agents/skeptic.py` | Implemented | Deterministic checks and optional model-assisted review exist. Full graph invocation and end-to-end behavior must be verified separately. |
-| MCP source server | `search_sources`, `read_source`, `check_url` | Planned (I4) | Intended to search for sources, read page content, and check URLs. Do not claim these operations are active until the server and runtime integration are implemented and tested. |
-| Multimodal analysis | `analyze_image` | Planned (I5) | Intended to analyze screenshots. Findings should be treated as hypotheses, not proof of causation or independently verified facts. |
+| MCP source server | `search_sources`, `read_source`, `check_url` | Implemented (I4), not yet in the graph | `mcp_server/sources.py` (logic), `mcp_server/server.py` (MCP), `tools/sources_tool.py` (client adapter and tools). `robots.txt` is obeyed, non-public hosts are refused, and page text is returned as untrusted data with flags. The graph `research` node still uses simulated sources until C2 swaps it; the Brave search provider is untested against the live API. |
+| Multimodal analysis | `analyze_image` | Implemented (I5), not yet in the graph; the live image call is untested | `vision.py` reads only small JPEG, PNG or WebP files under `data/screenshots` and `runs`, and refuses allergen, medical and legal questions. Images go through `BudgetedClient.complete_with_image`, so they share the spending cap and call log; a live call needs `VISION_MODEL` and its prices, and the Groq image request has only been tested with a fake transport. The graph `screenshots` node is still simulated. Findings should be treated as hypotheses, not proof of causation or independently verified facts. |
 
-A URL check, when implemented, will not establish that a source is accurate, authentic, legally reusable, or suitable evidence for a particular claim. Any future `robots.txt` handling must not be confused with a complete legal or terms-of-use assessment.
+The source retrieval implementation validates DNS resolution before connecting and pins each connection to one of the validated public IP addresses to mitigate DNS rebinding. Redirect targets are validated again before each subsequent connection. These safeguards do not establish that a source is accurate, authentic, legally reusable, or suitable evidence for a particular claim. The implemented `robots.txt` check must not be confused with a complete legal or terms-of-use assessment.
 
 The presence of a tool schema or agent specification does not prove that the tool has a functional implementation, is registered with the runtime, or is called by the graph.
 
@@ -170,8 +171,10 @@ The graph topology supports the Skeptic review loop, and tests explicitly inject
 | `stats/` | D1 brand metrics and intervals, D2 deterministic stopping policy, and chart functions |
 | `tools/` | Mention-extraction tool and D3 statistics tool |
 | `agents/` | Agent specifications, CrewAI factory, and Skeptic implementation |
+| `llm_client.py` | Simulated and Groq model clients, usage logging, and spending-cap enforcement |
 | `automation/` | Report generation, tracking CSV, and finalization |
 | `ui/mock_run.py` | Runs the simulated graph end to end |
+| `app.py`, `ui/brief_tab.py`, `ui/run_manager.py`, `ui/render.py` | Gradio interface skeleton: form, one background run at a time, page content |
 
 Module names and responsibilities should be checked against the current repository when this document is updated. The table describes the intended organization and does not imply that every component is wired into the production graph.
 
@@ -190,9 +193,13 @@ The following table distinguishes implemented modules from end-to-end integratio
 | Report, tracking CSV, and finalization | A7 | Implemented; the real end-to-end path depends on graph integration and explicit approval |
 | Deterministic stopping policy | D2 | Implemented in `stats/stopping.py`; graph currently uses simulated stopping behavior, integration pending |
 | Statistics tool and chart functions | D3 | Implemented in `tools/stats_tool.py` and `stats/charts.py`; agent, graph, and report integration pending |
-| Real model client with spending-cap enforcement | I3 | Must be verified against the current model-client implementation and provider integration; end-to-end cap enforcement is not established until every applicable call path is covered |
-| MCP source server and vision integration | I4, I5 | Planned |
-| Interface: activity and approval tab, results tab | I6, A4, D4 | Planned unless subsequent implementation has been verified |
+| Real model client with spending-cap enforcement | I3 | Implemented and locally tested; integration with graph sampling and CrewAI call paths remains pending verification |
+| MCP source server | I4 | Implemented and tested locally; graph integration pending (C2) |
+| Vision tool | I5 | Implemented on the budgeted client (I3); tested with simulated clients only; graph integration pending (C2) |
+| End-to-end simulated check | C0 | Implemented (`tests/test_end_to_end.py`, `tests/conftest.py`): brief to approval offline, `mock_run.py` and the UI runner kept in step; nodes are still fakes until C2 |
+| Real answer sample generator | I7 | Script implemented (`scripts/generate_sample.py`, live mode only, resumable, under the budgeted client); `data/sample_answers.csv` still has to be generated with a live key |
+| Interface skeleton: Brief, Activity and Results tabs, background run, spend bar | I6 | Implemented over the simulated graph (`ui/mock_run.py`, auto-approved); it has not been run against a live Gradio install by its author, and no real run is wired in (C2) |
+| Interface: approval buttons, report and downloads | A4, D4 | Planned unless subsequent implementation has been verified |
 | First full real run | C2 | Planned until a complete real run has been executed and its outputs inspected |
 
 Update this table when changes are implemented and merged. In particular, distinguish a tested module from a component integrated into the active graph, and distinguish a simulated end-to-end run from a real run involving external services.
