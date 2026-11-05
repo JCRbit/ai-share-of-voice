@@ -95,7 +95,7 @@ Contract authors: `brief.py` J+Ab, `events.py` J, `analysis.py` J, `stopping.py`
 | I4 | MCP sources server (`search_sources`, `read_source`, `check_url`, robots.txt, untrusted-content wrapping) + client adapter | `src/ai_share_of_voice/mcp_server/server.py`, `src/ai_share_of_voice/tools/sources_tool.py`, `tests/test_mcp_server.py`, `tests/fixtures/malicious_page.html` | 2–5 |
 | I5 | Vision (`analyze_image`) | `src/ai_share_of_voice/vision.py`, `tests/test_vision.py` | 3–5 |
 | I6 | `app.py` skeleton: tabs, background run, spend bar | `app.py`, `src/ai_share_of_voice/ui/brief_tab.py` | 3–4 |
-| I7 | Real 50-answer sample for labelling | `scripts/generate_sample.py`, `data/sample_answers.csv` | 4–5 |
+| I7 | Real 60-answer sample for labelling | `scripts/generate_sample.py`, `data/sample_answers.csv` | 4–5 |
 | — | README: Configuration & usage | `README.md` (section) | 8–9 |
 
 ### Ab — Product & Documentation (P4, beginner, never on the critical path)
@@ -136,7 +136,7 @@ ai-share-of-voice/
 ├── app.py                       # Gradio UI entry point (An)
 ├── mock_run.py                  # simulated events for UI work (An)
 ├── scripts/
-│   └── generate_sample.py       # real 50-answer sample (An)
+│   └── generate_sample.py       # real 60-answer sample (An)
 ├── data/
 │   ├── competitors.csv          # Ab
 │   ├── questions.csv            # Ab
@@ -322,7 +322,7 @@ test(mcp): add malicious page fixture for injection handling
 feat(tools): add mcp client adapter for source researcher
 feat(vision): add analyze_image for charts and screenshots
 feat(app): add gradio skeleton with tabs and spend bar
-feat(scripts): generate 50-answer sample with real client
+feat(scripts): generate 60-answer sample with real client
 docs(readme): add configuration and usage sections
 ```
 
