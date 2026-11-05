@@ -28,6 +28,7 @@ pre-commit install --hook-type pre-commit --hook-type commit-msg --hook-type pre
 
 - On commit: `ruff` and `ruff format` run, and the commit message must follow Conventional Commits.
 - On push: `pytest` runs.
-- Before opening a PR: `make check` (or the equivalent commands) must pass.
+- Before opening a PR: `make check` (or the equivalent commands) must pass. It includes `tests/test_end_to_end.py`, the whole simulated system from brief to approval, so it also covers what the CI step `python mock_run.py` checks.
+- Tests always run with `LLM_MODE=simulated` (`tests/conftest.py`); use the `no_network` fixture in a test that must prove it stays offline.
 - The reviewer verifies the PR title follows Conventional Commits, because the squash commit takes it as message.
 - When CI is available again: run `bash scripts/protect_main.sh` to require the `test` and `pr-title` checks.

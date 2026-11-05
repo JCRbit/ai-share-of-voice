@@ -5,6 +5,7 @@ findings are labelled as hypotheses, and the run log is attached, so a third par
 trace each claim. The report always states that it is a dated sample and not market share.
 """
 
+import html
 import re
 from datetime import UTC, datetime
 
@@ -82,9 +83,35 @@ def _line(text: str) -> str:
     return " ".join(text.split())
 
 
+def _markdown_text(text: str, *, escape_pipes: bool = True) -> str:
+    """Escape untrusted text so it is displayed as plain Markdown text."""
+    clean = " ".join(text.split())
+    clean = html.escape(clean, quote=False)
+    clean = re.sub(r"([\\`*_{}\[\]()#+\-!])", r"\\\1", clean)
+    clean = re.sub(
+        r"(https?://[^\s\\]+)",
+        lambda match: match.group(0).replace(".", r"\."),
+        clean,
+    )
+    return clean.replace("|", r"\|") if escape_pipes else clean
+
+
+def _code_span(text: str) -> str:
+    """Render untrusted text inside a safe Markdown code span."""
+    clean = " ".join(text.split())
+    longest_run = max(
+        (len(match.group()) for match in re.finditer(r"`+", clean)),
+        default=0,
+    )
+    delimiter = "`" * (longest_run + 1)
+    return f"{delimiter}{html.escape(clean, quote=False)}{delimiter}"
+
+
 def _cell(text: str | None) -> str:
-    """Make text safe for a Markdown table cell: one line, no pipes, bounded length."""
-    clean = _line(text or "").replace("|", "\\|")
+    """Escape untrusted text for a bounded Markdown table cell."""
+    clean = html.escape(_line(text or ""), quote=False)
+    clean = re.sub(r"([\\`*{}\[\]()#+\-.!])", r"\\\1", clean)
+    clean = clean.replace("|", r"\|")
     if len(clean) <= MAX_CELL_CHARS:
         return clean
     return clean[: MAX_CELL_CHARS - 3] + "..."
@@ -100,18 +127,21 @@ def render_report(data: ReportData) -> str:
     """Render the report as Markdown."""
     summary = data.summary
     generated = data.generated_at.astimezone(UTC)
-    competitors = ", ".join(data.competitors) or "its competitors"
+    competitors = ", ".join(_markdown_text(name) for name in data.competitors) or "its competitors"
     batch = f"batch {summary.batch_index + 1}"
     brand_cell = _cell(data.brand)
+    brand_text = _markdown_text(data.brand)
+    sector_text = _markdown_text(data.sector)
+    city_text = _markdown_text(data.city)
 
     lines = [
-        f"# AI Share of Voice report: {data.brand}",
+        f"# AI Share of Voice report: {brand_text}",
         "",
-        f"Run `{data.run_id}` | generated {generated:%Y-%m-%d %H:%M} UTC | "
-        f"{data.sector} in {data.city}",
+        f"Run {_code_span(data.run_id)} | generated {generated:%Y-%m-%d %H:%M} UTC | "
+        f"{sector_text} in {city_text}",
         "",
         "> **Dated sample, not market share.** This report measures how often AI assistant "
-        f"answers mention {data.brand} compared with {competitors}. It does not measure sales "
+        f"answers mention {brand_text} compared with {competitors}. It does not measure sales "
         "or market share, and it does not show why an assistant answers the way it does.",
         "",
         "## Key figures",
@@ -125,7 +155,8 @@ def render_report(data: ReportData) -> str:
         "",
         "## Sampling and stopping",
         "",
-        f"Sampling stopped because of **{data.stop.reason.value}**: {_line(data.stop.explanation)}",
+        f"Sampling stopped because of **{data.stop.reason.value}**: "
+        f"{_markdown_text(data.stop.explanation)}",
         "",
         "| Batch | Answers | Share | Interval | Cost (USD) |",
         "| --- | --- | --- | --- | --- |",
@@ -144,15 +175,19 @@ def render_report(data: ReportData) -> str:
 
     lines += ["", "### Visual findings (hypotheses, not causes)", ""]
     if data.findings:
-        lines += [f"- {_line(finding)}" for finding in data.findings]
+        lines += [f"- {_markdown_text(finding)}" for finding in data.findings]
     else:
         lines.append("No visual findings were recorded.")
 
-    lines += ["", "## Analysis", "", data.draft.strip() or "No narrative was recorded."]
+    draft = data.draft.strip()
+    safe_draft = "\n".join(
+        _markdown_text(line) if line.strip() else "" for line in draft.splitlines()
+    )
+    lines += ["", "## Analysis", "", safe_draft or "No narrative was recorded."]
 
     if data.objections:
         lines += ["", "## Open objections from the Skeptic", ""]
-        lines += [f"- {_line(objection)}" for objection in data.objections]
+        lines += [f"- {_markdown_text(objection)}" for objection in data.objections]
 
     lines += [
         "",
