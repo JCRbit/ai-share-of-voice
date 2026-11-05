@@ -3,15 +3,15 @@ import json
 from pathlib import Path
 
 import pytest
-
-from ai_share_of_voice.errors import ToolFailure
-from ai_share_of_voice.exceptions import BudgetExceeded, ConfigurationError
 from ai_share_of_voice.llm_client import (
     GroqClient,
     Pricing,
     SimulatedClient,
     client_from_env,
 )
+
+from ai_share_of_voice.errors import ToolFailure
+from ai_share_of_voice.exceptions import BudgetExceeded, ConfigurationError
 from ai_share_of_voice.schemas.llm import ImagePart
 from ai_share_of_voice.schemas.vision import Confidence, VisionRequest
 from ai_share_of_voice.vision import VisionJudgement, VisionTool, analyze_image
@@ -131,6 +131,7 @@ def test_the_tool_works_end_to_end_with_the_live_client() -> None:
 def test_the_image_part_prints_without_its_bytes() -> None:
     assert "JFIF" not in repr(ImagePart("image/jpeg", b"\xff\xd8\xff\xe0JFIF"))
 
+
 @pytest.mark.parametrize(
     "prices",
     [
@@ -146,4 +147,3 @@ def test_vision_prices_without_a_model_are_rejected(prices: dict[str, str]) -> N
     env = {"LLM_MODE": "live", "LLM_PROVIDER": "groq", "LLM_API_KEY": "key"}
     with pytest.raises(ConfigurationError, match="VISION_MODEL"):
         client_from_env({**env, **prices}, transport=Transport())
-
