@@ -312,7 +312,7 @@ def check_public_url(
             ip = ip.ipv4_mapped
         if not ip.is_global:
             raise UnsafeUrlError("the host resolves to a non-public address")
-    
+
     return tuple(addresses)
 
 
