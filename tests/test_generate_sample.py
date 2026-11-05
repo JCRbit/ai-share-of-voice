@@ -166,7 +166,7 @@ def test_text_that_would_run_as_a_formula_is_shown_as_text(tmp_path: Path, text:
 
 def test_normal_text_is_saved_untouched_even_with_commas_and_lines(tmp_path: Path) -> None:
     out = tmp_path / "sample.csv"
-    text = "Hola, mundo\nSegunda línea con \"comillas\""
+    text = 'Hola, mundo\nSegunda línea con "comillas"'
     sample.generate(simulated(lambda prompt: text), panel_of(1), out, 1)
     assert read_rows(out)[0]["text"] == text
 
