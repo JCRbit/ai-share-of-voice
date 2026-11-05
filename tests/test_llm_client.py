@@ -1,11 +1,10 @@
 import json
-from pathlib import Path
-from typing import Any
-from datetime import datetime, timedelta, timezone
-from email.utils import format_datetime
-
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
+from pathlib import Path
+from typing import Any
 
 import pytest
 from pydantic import BaseModel
@@ -18,9 +17,9 @@ from ai_share_of_voice.llm_client import (
     Pricing,
     SimulatedClient,
     TransportError,
+    _parse_retry_after,
     client_from_env,
     read_logged_spend,
-    _parse_retry_after,
 )
 from ai_share_of_voice.schemas.llm import ModelClient
 
@@ -386,7 +385,7 @@ def test_transient_errors_are_retried_with_backoff() -> None:
 
 
 def test_parse_retry_after_http_date() -> None:
-    retry_at = datetime.now(timezone.utc) + timedelta(seconds=30)
+    retry_at = datetime.now(UTC) + timedelta(seconds=30)
     value = format_datetime(retry_at, usegmt=True)
 
     delay = _parse_retry_after(value)
@@ -396,7 +395,7 @@ def test_parse_retry_after_http_date() -> None:
 
 
 def test_parse_retry_after_past_http_date_returns_zero() -> None:
-    retry_at = datetime.now(timezone.utc) - timedelta(seconds=30)
+    retry_at = datetime.now(UTC) - timedelta(seconds=30)
     value = format_datetime(retry_at, usegmt=True)
 
     assert _parse_retry_after(value) == 0.0
