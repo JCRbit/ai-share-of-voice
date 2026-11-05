@@ -1,9 +1,9 @@
 import json
+import socket
 import threading
 from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-import socket
 
 import pytest
 
@@ -19,9 +19,9 @@ from ai_share_of_voice.mcp_server.sources import (
     UnsafeUrlError,
     UnsupportedContentError,
     UrllibFetcher,
+    check_public_url,
     render_check_for_agent,
     render_for_agent,
-    check_public_url,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -42,14 +42,14 @@ class FakeWeb:
         self.requests: list[tuple[str, str]] = []
 
     def fetch(
-    self,
-    url,
-    *,
-    method="GET",
-    max_bytes,
-    timeout,
-    headers=None,
-    validated_addresses=None,
+        self,
+        url,
+        *,
+        method="GET",
+        max_bytes,
+        timeout,
+        headers=None,
+        validated_addresses=None,
     ):
         self.requests.append((method, url))
         page = self.pages.get(url)
@@ -232,9 +232,7 @@ def test_urllib_fetcher_connects_to_the_validated_ip_not_a_new_dns_answer(
         # El dominio cambia su respuesta después de la validación:
         # primero fue público y ahora apunta a loopback.
         address = "127.0.0.1" if host == "rebind.example" else host
-        return [
-            (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (address, port))
-        ]
+        return [(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (address, port))]
 
     def fake_create_connection(address, timeout=None, source_address=None, **kwargs):
         host, port = address
@@ -254,7 +252,7 @@ def test_urllib_fetcher_connects_to_the_validated_ip_not_a_new_dns_answer(
         svc.read_source("https://rebind.example/")
 
     assert attempted_addresses == ["93.184.216.34"]
-    
+
 
 def test_non_text_content_and_error_statuses_are_reported() -> None:
     pdf, gone = "https://example.com/a.pdf", "https://example.com/gone"
