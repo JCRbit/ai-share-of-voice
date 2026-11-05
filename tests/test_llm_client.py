@@ -581,6 +581,7 @@ def test_log_write_failure_propagates_after_recording_spend(
     assert len(client.calls) == 1
     assert not log.exists()
 
+
 def _shared_budget_process_worker(log_path: str, barrier: Any, results: Any) -> None:
     client = SimulatedClient(
         pricing=Pricing(0, 1_000_000),
@@ -634,9 +635,7 @@ def test_person_cap_is_shared_between_processes(tmp_path: Path) -> None:
         ("LLM_PRICE_OUTPUT_PER_M", "-0.01"),
     ],
 )
-def test_environment_rejects_negative_text_prices(
-    price_name: str, price_value: str
-) -> None:
+def test_environment_rejects_negative_text_prices(price_name: str, price_value: str) -> None:
     env = {
         "LLM_MODE": "live",
         "LLM_PROVIDER": "groq",
@@ -656,9 +655,7 @@ def test_environment_rejects_negative_text_prices(
         ("VISION_PRICE_OUTPUT_PER_M", "-0.01"),
     ],
 )
-def test_environment_rejects_negative_vision_prices(
-    price_name: str, price_value: str
-) -> None:
+def test_environment_rejects_negative_vision_prices(price_name: str, price_value: str) -> None:
     env = {
         "LLM_MODE": "live",
         "LLM_PROVIDER": "groq",
