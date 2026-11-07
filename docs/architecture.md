@@ -46,7 +46,7 @@ The design does not delegate graph control to a CrewAI manager. A hierarchical c
 Two implementation limits are particularly important:
 
 - **Agent specifications and factory are implemented; full graph integration must be assessed separately.** The seven agent specifications and factory are defined in `agents/specs.py` and `agents/factory.py`. Their existence does not mean that all seven agents are invoked by the active graph. The graph's core workflow still contains simulated behavior where real integrations have not been completed.
-- **Model-client enforcement is not automatically inherited by CrewAI.** The factory accepts an explicit `llm`, but this does not guarantee that every model call passes through `ModelClient` or its spending-cap enforcement. The cap protects only calls routed through a client that actually enforces it. A suitable adapter and verified call-path coverage are required before claiming end-to-end budget enforcement.
+- **Model-client enforcement is not automatically inherited by CrewAI.** `build_agents` accepts any explicit `llm`, and an `llm` that is a model name string or a CrewAI `LLM` makes CrewAI call the provider outside `ModelClient`. `build_budgeted_agents` gives the agents `ModelClientLLM` (`agents/crewai_bridge.py`), a CrewAI `BaseLLM` that sends every turn through `ModelClient.complete`, so the run and person caps and the call log apply (task A2b). The adapter has been exercised with a real CrewAI task and a simulated ModelClient; live provider calls and integration into the production graph remain to be verified before claiming end-to-end budget enforcement.
 - **I3 model client is implemented and locally tested.** `llm_client.py` provides simulated and Groq-backed clients, usage logging, pre-call budget checks, and run/person spending caps. This module-level implementation does not prove that graph sampling or CrewAI calls use the client. Pre-call cost estimates are not billing ceilings: actual provider charges may exceed them. The person cap is not atomic across independent processes or client instances sharing the same usage log.
 
 ## Agents
@@ -193,7 +193,8 @@ The following table distinguishes implemented modules from end-to-end integratio
 | Report, tracking CSV, and finalization | A7 | Implemented; the real end-to-end path depends on graph integration and explicit approval |
 | Deterministic stopping policy | D2 | Implemented in `stats/stopping.py`; graph currently uses simulated stopping behavior, integration pending |
 | Statistics tool and chart functions | D3 | Implemented in `tools/stats_tool.py` and `stats/charts.py`; agent, graph, and report integration pending |
-| Real model client with spending-cap enforcement | I3 | Implemented and locally tested; integration with graph sampling and CrewAI call paths remains pending verification |
+| Real model client with spending-cap enforcement | I3 | Implemented and locally tested; integration with graph sampling remains pending verification |
+| CrewAI agent calls through the model client | A2b | Adapter implemented and tested with a real CrewAI task and a simulated client; live provider and graph integration remain unverified |
 | MCP source server | I4 | Implemented and tested locally; graph integration pending (C2) |
 | Vision tool | I5 | Implemented on the budgeted client (I3); tested with simulated clients only; graph integration pending (C2) |
 | End-to-end simulated check | C0 | Implemented (`tests/test_end_to_end.py`, `tests/conftest.py`): brief to approval offline, `mock_run.py` and the UI runner kept in step; nodes are still fakes until C2 |
