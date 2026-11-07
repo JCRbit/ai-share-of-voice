@@ -228,7 +228,7 @@ Statistical reasons come first, so the explanation says why the result is good e
 - Mentions are matched by name and variants: paraphrases ("the orange delivery app") and brands outside `data/competitors.csv` can be missed (see [decision 7](docs/decisions.md#7-untracked-brands-in-answers)).
 - No causality is claimed between a cited web source and a recommendation.
 - A model API response may differ from what a person sees in an assistant app, which may add web search or other settings.
-- Spending limits protect only calls that pass through a client that enforces the cap. CrewAI calls are not covered until an adapter routes them through that client.
+- Spending limits protect only calls that pass through a client that enforces the cap. CrewAI agents built with `build_budgeted_agents` (`agents/factory.py`) are routed through that client by an adapter (task A2b); agents given any other `llm`, such as a model name string, call the provider by themselves and are not covered. The adapter was written against the CrewAI 1.15 documentation and tested with a real CrewAI task using a simulated ModelClient; live provider calls have not been tested.
 
 ## Sections (owners)
 - Architecture, process justification and ethics — J
