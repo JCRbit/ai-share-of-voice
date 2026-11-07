@@ -1,4 +1,4 @@
-"""Builds CrewAI agents from the specs (owner: J).
+"""Builds CrewAI agents from the specs.
 
 ``crewai`` is imported only when an agent is built, so the rest of the package works
 without it. The language model and the tools are always passed in explicitly:
@@ -6,6 +6,11 @@ without it. The language model and the tools are always passed in explicitly:
 * ``llm`` is required. There is no default, so an agent can never silently use a provider
   key from the environment and spend money outside the spending cap.
 * An agent only receives the tools named in its spec, even if more are available.
+
+``build_budgeted_agents`` is the way to build agents for a real run: it gives them an LLM that
+sends every call through ``ModelClient`` (task A2b), so the spending cap and the call log cover
+the agents too. A model name string or a CrewAI ``LLM`` passed to ``build_agents`` would make
+CrewAI call the provider by itself, outside both.
 """
 
 from collections.abc import Callable, Iterable, Mapping
@@ -24,7 +29,9 @@ def _crewai_agent() -> AgentFactory:
     """Return ``crewai.Agent``, with a clear message if CrewAI is not installed."""
     try:
         from crewai import Agent
-    except ImportError as error:
+    except ModuleNotFoundError as error:
+        if error.name != "crewai":
+            raise
         raise RuntimeError(
             "crewai is not installed. CrewAI supports Python 3.10 to 3.13: use Python 3.12 "
             "or 3.13 and install it there."
@@ -58,6 +65,20 @@ def build_agent(
     )
 
 
+def _model_client_llm(client: Any) -> Any:
+    """Return a CrewAI LLM that routes through ``client``; explain clearly if CrewAI is missing."""
+    try:
+        from ai_share_of_voice.agents.crewai_bridge import ModelClientLLM
+    except ModuleNotFoundError as error:
+        if error.name != "crewai":
+            raise
+        raise RuntimeError(
+            "crewai is not installed. CrewAI supports Python 3.10 to 3.13: use Python 3.12 "
+            "or 3.13 and install it there."
+        ) from error
+    return ModelClientLLM(client)
+
+
 def build_agents(
     *,
     llm: Any,
@@ -74,3 +95,19 @@ def build_agents(
         key: build_agent(AGENT_SPECS[key], llm=llm, tools=tools, agent_factory=agent_factory)
         for key in selected
     }
+
+
+def build_budgeted_agents(
+    *,
+    client: Any,
+    tools: Mapping[str, Any],
+    keys: Iterable[str] | None = None,
+    agent_factory: AgentFactory | None = None,
+) -> dict[str, Any]:
+    """Build agents whose every model call goes through ``client`` (cap, token and cost log).
+
+    ``tools`` must already be CrewAI tools; ``crewai_bridge.bridge_tools`` wraps the project ones.
+    """
+    return build_agents(
+        llm=_model_client_llm(client), tools=tools, keys=keys, agent_factory=agent_factory
+    )
