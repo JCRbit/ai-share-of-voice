@@ -193,7 +193,8 @@ The following table distinguishes implemented modules from end-to-end integratio
 | Report, tracking CSV, and finalization | A7 | Implemented; the real end-to-end path depends on graph integration and explicit approval |
 | Deterministic stopping policy | D2 | Implemented in `stats/stopping.py`; graph currently uses simulated stopping behavior, integration pending |
 | Statistics tool and chart functions | D3 | Implemented in `tools/stats_tool.py` and `stats/charts.py`; agent, graph, and report integration pending |
-| Real model client with spending-cap enforcement | I3 | Implemented and locally tested; integration with graph sampling and CrewAI call paths remains pending verification |
+| Real model client with spending-cap enforcement | I3 | Implemented and locally tested; integration with graph sampling remains pending verification |
+| CrewAI agent calls through the model client | A2b | Adapter implemented and tested with a real CrewAI task and a simulated client; live provider and graph integration remain unverified |
 | MCP source server | I4 | Implemented and tested locally; graph integration pending (C2) |
 | Vision tool | I5 | Implemented on the budgeted client (I3); tested with simulated clients only; graph integration pending (C2) |
 | End-to-end simulated check | C0 | Implemented (`tests/test_end_to_end.py`, `tests/conftest.py`): brief to approval offline, `mock_run.py` and the UI runner kept in step; nodes are still fakes until C2 |
