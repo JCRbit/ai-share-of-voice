@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 from pydantic import BaseModel
@@ -8,6 +9,10 @@ from ai_share_of_voice.agents.llm_adapter import AgentReply
 from ai_share_of_voice.agents.specs import AGENT_SPECS, KNOWN_TOOLS
 from ai_share_of_voice.exceptions import BudgetExceeded
 from ai_share_of_voice.llm_client import Pricing, SimulatedClient
+from ai_share_of_voice.run_store import RunStore
+from ai_share_of_voice.schemas.analysis import RawAnswer, Tone
+from ai_share_of_voice.schemas.brief import BrandSpec, Brief
+from ai_share_of_voice.tools.mention_tool import BrandJudgement, StoredMentionTool
 
 crewai = pytest.importorskip("crewai")
 
@@ -17,6 +22,7 @@ from ai_share_of_voice.agents.crewai_bridge import (  # noqa: E402
     bridge_tools,
 )
 
+RUN = "run-20261101-120000-abc123"
 MESSAGES = [
     {"role": "system", "content": "You are a careful analyst."},
     {"role": "user", "content": "Say hello."},
@@ -88,20 +94,51 @@ def test_the_spending_cap_error_reaches_crewai() -> None:
 # ---- the tools -------------------------------------------------------------------------------
 
 
-def test_a_project_tool_becomes_a_crewai_tool_with_the_same_name_and_arguments() -> None:
-    bridged = as_crewai_tool(_Stub("example_tool"))
-    assert bridged.name == "example_tool"
-    assert set(bridged.args_schema.model_fields) == {"query"}
+def stored_mention_tool(tmp_path: Path) -> object:
+    store = RunStore(tmp_path)
+    store.save_brief(
+        RUN,
+        Brief(
+            brand=BrandSpec(name="Acme Food"),
+            competitors=(BrandSpec(name="Beta Eats"), BrandSpec(name="Gamma Bites")),
+            sector="food delivery",
+            city="Madrid",
+            spend_cap_usd=2.0,
+            max_batches=5,
+        ),
+    )
+    answer = RawAnswer(
+        response_id="r1", question_id="q01", batch_index=0, model="fake", text="Acme Food es buena."
+    )
+    store.append_answer(RUN, answer)
+
+    def respond(prompt: str, schema: type[BaseModel]) -> BaseModel:
+        judgement = BrandJudgement(brand="Acme Food", recommended=True, tone=Tone.POSITIVE)
+        return schema(judgements=(judgement,))
+
+    return StoredMentionTool(SimulatedClient(responder=respond), store)
 
 
-def test_a_tool_result_is_rendered_as_compact_text() -> None:
-    bridged = as_crewai_tool(_Stub("example_tool"))
-    assert bridged.run(query="hello") == "ok"
+def test_a_project_tool_becomes_a_crewai_tool_with_the_same_name_and_arguments(
+    tmp_path: Path,
+) -> None:
+    tool = stored_mention_tool(tmp_path)
+    bridged = as_crewai_tool(tool)
+    assert bridged.name == "extract_brand_mentions"
+    assert set(bridged.args_schema.model_fields) == {"run_id", "response_id"}
 
 
-def test_tools_are_bridged_by_key() -> None:
-    tools = bridge_tools({"example_tool": _Stub("example_tool")})
-    assert list(tools) == ["example_tool"]
+def test_the_agent_gets_the_analysis_as_compact_json_without_the_usage(tmp_path: Path) -> None:
+    bridged = as_crewai_tool(stored_mention_tool(tmp_path))
+    result = json.loads(bridged.run(run_id=RUN, response_id="r1"))
+    assert result["response_id"] == "r1"
+    assert [m["brand"] for m in result["mentions"] if m["mentioned"]] == ["Acme Food"]
+    assert "usage" not in result and "cost_usd" not in json.dumps(result)
+
+
+def test_tools_are_bridged_by_key(tmp_path: Path) -> None:
+    tools = bridge_tools({"extract_brand_mentions": stored_mention_tool(tmp_path)})
+    assert list(tools) == ["extract_brand_mentions"]
 
 
 # ---- agents built with it --------------------------------------------------------------------

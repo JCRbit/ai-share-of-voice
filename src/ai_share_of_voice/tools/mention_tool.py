@@ -1,4 +1,4 @@
-"""Mention extraction tool (owner: J).
+"""Mention extraction tool.
 
 Turns one model answer into an ``AnalyzedResponse``: for every tracked brand it says
 whether the answer mentions it, recommends it, in which position and with which tone.
@@ -12,8 +12,15 @@ The work is split on purpose:
   brands that are already known to be mentioned. If nothing is mentioned, no call is made.
 
 The answer text is untrusted data: it is delimited in the prompt and never executed.
-``MentionTool`` is a thin wrapper with a validated input schema that the CrewAI agent
-(A2) can expose as a tool.
+
+Two thin wrappers expose the extraction as a tool, and they differ in what the agent passes:
+
+* ``MentionTool`` takes the whole answer text. It suits code that already holds the text.
+* ``StoredMentionTool`` takes only ``run_id`` and ``response_id`` and reads the answer and the
+  brief from the run folder (``run_store.py``). This is the one for a CrewAI agent: it does not
+  put thousands of characters into every tool call and the agent cannot alter the answer.
+
+A graph node can call ``extract_stored_mentions`` directly, with no agent in between.
 """
 
 import json
@@ -23,6 +30,8 @@ from typing import Any, Self
 
 from pydantic import Field, HttpUrl, TypeAdapter, ValidationError, model_validator
 
+from ai_share_of_voice.errors import ToolFailure
+from ai_share_of_voice.run_store import RunStore
 from ai_share_of_voice.schemas.analysis import AnalyzedResponse, BrandMention, RawAnswer, Tone
 from ai_share_of_voice.schemas.base import Contract
 from ai_share_of_voice.schemas.brief import BrandSpec, Brief, normalize_brand_name
@@ -30,6 +39,7 @@ from ai_share_of_voice.schemas.llm import ModelClient, Usage
 
 MAX_ANSWER_CHARS = 20_000
 MAX_BRANDS = 6  # the client brand plus up to five competitors
+TOOL_NAME = "extract_brand_mentions"
 
 _URL_PATTERN = re.compile(r"https?://[^\s<>\"'\[\]]+", re.IGNORECASE)
 _URL_TRAILING_PUNCTUATION = ".,;:!?)}"
@@ -245,3 +255,61 @@ class MentionTool:
     def run(self, **arguments: Any) -> ExtractionResult:
         """Validate ``arguments`` against ``args_schema`` and extract the mentions."""
         return extract_mentions(self.args_schema(**arguments), self._client)
+
+
+class StoredAnswerRequest(Contract):
+    """Input of the stored-answer tool: which answer of which run to analyze."""
+
+    run_id: str = Field(min_length=1, max_length=100)
+    response_id: str = Field(min_length=1, max_length=200)
+
+
+def extract_stored_mentions(
+    run_id: str, response_id: str, store: RunStore, client: ModelClient
+) -> ExtractionResult:
+    """Analyze the answer ``response_id`` of ``run_id``, reading it and the brief from the store.
+
+    Raises ``ToolFailure`` if the run, its brief or the answer is missing or cannot be analyzed
+    (for example an answer longer than the limit of the extraction), and propagates
+    ``ExtractionError`` and ``BudgetExceeded`` like ``extract_mentions``.
+    """
+    answer = store.load_answer(run_id, response_id)
+    brief = store.load_brief(run_id)
+    try:
+        data = MentionExtractionInput.from_answer(answer, brief)
+    except ValidationError as error:
+        reason = (
+            f"answer {response_id!r} cannot be analyzed with this brief: it needs 1 to "
+            f"{MAX_ANSWER_CHARS} characters and the brief at most {MAX_BRANDS} brands"
+        )
+        raise ToolFailure(TOOL_NAME, reason) from error
+    return extract_mentions(data, client)
+
+
+class StoredMentionTool:
+    """Agent-facing wrapper that needs only ids: the answer and the brief come from the run.
+
+    It has the same name as ``MentionTool``, so an agent spec names one tool; build the one
+    that fits how the agent is run. The CrewAI bridge shows the agent only the analysis, not the
+    usage of the model call.
+    """
+
+    name = TOOL_NAME
+    description = (
+        "Analyze one stored AI answer. Give the run id and the response id; the answer and the "
+        "tracked brands are read from the run, so do not paste the text. For each brand it says "
+        "whether it is mentioned, recommended, in which position and with which tone, and it "
+        "lists the cited URLs."
+    )
+    args_schema = StoredAnswerRequest
+
+    def __init__(self, client: ModelClient, store: RunStore | None = None) -> None:
+        self._client = client
+        self._store = store if store is not None else RunStore()
+
+    def run(self, **arguments: Any) -> ExtractionResult:
+        """Validate ``arguments`` against ``args_schema`` and analyze the stored answer."""
+        request = self.args_schema(**arguments)
+        return extract_stored_mentions(
+            request.run_id, request.response_id, self._store, self._client
+        )
