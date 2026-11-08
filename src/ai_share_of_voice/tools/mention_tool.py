@@ -1,4 +1,4 @@
-"""Mention extraction tool (owner: J).
+"""Mention extraction tool.
 
 Turns one model answer into an ``AnalyzedResponse``: for every tracked brand it says
 whether the answer mentions it, recommends it, in which position and with which tone.
