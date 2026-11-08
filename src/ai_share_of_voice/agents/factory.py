@@ -1,4 +1,4 @@
-"""Builds CrewAI agents from the specs.
+"""Builds CrewAI agents from the specs (owner: J).
 
 ``crewai`` is imported only when an agent is built, so the rest of the package works
 without it. The language model and the tools are always passed in explicitly:
@@ -29,9 +29,7 @@ def _crewai_agent() -> AgentFactory:
     """Return ``crewai.Agent``, with a clear message if CrewAI is not installed."""
     try:
         from crewai import Agent
-    except ModuleNotFoundError as error:
-        if error.name != "crewai":
-            raise
+    except ImportError as error:
         raise RuntimeError(
             "crewai is not installed. CrewAI supports Python 3.10 to 3.13: use Python 3.12 "
             "or 3.13 and install it there."
@@ -69,9 +67,7 @@ def _model_client_llm(client: Any) -> Any:
     """Return a CrewAI LLM that routes through ``client``; explain clearly if CrewAI is missing."""
     try:
         from ai_share_of_voice.agents.crewai_bridge import ModelClientLLM
-    except ModuleNotFoundError as error:
-        if error.name != "crewai":
-            raise
+    except ImportError as error:
         raise RuntimeError(
             "crewai is not installed. CrewAI supports Python 3.10 to 3.13: use Python 3.12 "
             "or 3.13 and install it there."

@@ -92,6 +92,9 @@ def _emit(
     return event
 
 
+emit_event = _emit  # public name for the real nodes (real_nodes.py)
+
+
 def make_fake_nodes(deps: NodeDeps, behavior: FakeBehavior | None = None) -> dict[str, NodeFn]:
     """Return the fake version of every node of the graph, keyed by node name."""
     behavior = behavior or FakeBehavior()

@@ -305,7 +305,7 @@ class StoredMentionTool:
 
     def __init__(self, client: ModelClient, store: RunStore | None = None) -> None:
         self._client = client
-        self._store = store if store is not None else RunStore()
+        self._store = store or RunStore()
 
     def run(self, **arguments: Any) -> ExtractionResult:
         """Validate ``arguments`` against ``args_schema`` and analyze the stored answer."""

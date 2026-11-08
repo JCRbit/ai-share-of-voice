@@ -1,4 +1,4 @@
-"""The CrewAI side of the budgeted agents.
+"""The CrewAI side of the budgeted agents (owner: An, tasks A2b and A3b).
 
 This module imports ``crewai``, so import it only where agents are built; ``agents/factory.py``
 does it lazily. The logic that does not need CrewAI is in ``agents/llm_adapter.py``.

@@ -145,7 +145,7 @@ def test_tools_are_bridged_by_key(tmp_path: Path) -> None:
 
 
 def test_budgeted_agents_use_the_client_and_need_no_provider_key(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     for key in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GROQ_API_KEY"):
         monkeypatch.delenv(key, raising=False)
@@ -157,7 +157,7 @@ def test_budgeted_agents_use_the_client_and_need_no_provider_key(
 
 
 def test_a_real_crewai_task_runs_through_the_client(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """The point of A2b: CrewAI runs the agent and every model call is the client's."""
     for key in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GROQ_API_KEY"):

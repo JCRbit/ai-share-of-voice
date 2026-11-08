@@ -9,6 +9,8 @@ non-primitive data (raw answers, source documents, images) belongs in the run fo
 import operator
 from typing import Annotated, Literal, TypedDict
 
+from pydantic import StrictBool
+
 from ai_share_of_voice.schemas.base import Contract
 from ai_share_of_voice.schemas.brief import Brief
 from ai_share_of_voice.schemas.events import GraphEvent
@@ -21,7 +23,7 @@ RunStatus = Literal["running", "completed", "partial", "rejected"]
 class ApprovalResponse(Contract):
     """What the approval page sends to resume the graph after the human pause."""
 
-    approved: bool
+    approved: StrictBool
     comment: str | None = None
 
 

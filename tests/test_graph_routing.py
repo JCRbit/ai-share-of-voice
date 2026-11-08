@@ -162,7 +162,17 @@ def test_rejection_closes_without_finalizing(tmp_path: Path) -> None:
     assert rejected[0].reason == "Numbers look off"
 
 
-@pytest.mark.parametrize("answer", [{"approved": "maybe"}, {"comment": "no decision"}])
+@pytest.mark.parametrize(
+    "answer",
+    [
+        {"approved": "maybe"},
+        {"approved": "true"},
+        {"approved": "yes"},
+        {"approved": 1},
+        {"approved": 0},
+        {"comment": "no decision"},
+    ],
+)
 def test_invalid_approval_answer_is_rejected(tmp_path: Path, answer: dict) -> None:
     graph, _ = build(tmp_path)
     config = start(graph)

@@ -4,8 +4,13 @@ from pathlib import Path
 import pytest
 
 from ai_share_of_voice.errors import ToolFailure
-from ai_share_of_voice.run_store import ANSWERS_FILE_NAME, BRIEF_FILE_NAME, RunStore
-from ai_share_of_voice.schemas.analysis import RawAnswer
+from ai_share_of_voice.run_store import (
+    ANALYSES_FILE_NAME,
+    ANSWERS_FILE_NAME,
+    BRIEF_FILE_NAME,
+    RunStore,
+)
+from ai_share_of_voice.schemas.analysis import AnalyzedResponse, BrandMention, RawAnswer, Tone
 from ai_share_of_voice.schemas.brief import BrandSpec, Brief
 
 RUN = "run-20261101-120000-abc123"
@@ -25,6 +30,20 @@ def make_brief(sector: str = "food delivery") -> Brief:
 def make_answer(response_id: str = "r1", text: str = "Acme es una buena opción.") -> RawAnswer:
     return RawAnswer(
         response_id=response_id, question_id="q01", batch_index=0, model="fake-model", text=text
+    )
+
+
+def make_analysis(response_id: str = "r1", url: str = "https://example.com/a") -> AnalyzedResponse:
+    acme = BrandMention(
+        brand="Acme Food", mentioned=True, recommended=True, position=1, tone=Tone.POSITIVE
+    )
+    mentions = (acme, BrandMention(brand="Beta Eats", mentioned=False))
+    return AnalyzedResponse(
+        response_id=response_id,
+        question_id="q01",
+        batch_index=0,
+        mentions=mentions,
+        sources=(url,),
     )
 
 
@@ -141,3 +160,42 @@ def test_threads_can_append_at_the_same_time_without_losing_or_mixing_answers(
         thread.join()
     assert sorted(store.answer_ids(RUN)) == ids
     assert all(store.load_answer(RUN, i).text == f"texto {i}" for i in ids)
+
+
+def test_analyses_are_stored_in_order_and_read_back(tmp_path: Path) -> None:
+    store = RunStore(tmp_path)
+    assert store.load_analyses(RUN) == []
+    first, second = make_analysis("r1"), make_analysis("r2", "https://example.com/b")
+    store.append_analysis(RUN, first)
+    store.append_analysis(RUN, second)
+    assert store.load_analyses(RUN) == [first, second]
+    assert (tmp_path / RUN / ANALYSES_FILE_NAME).read_text(encoding="utf-8").count("\n") == 2
+
+
+def test_an_analysis_that_is_already_stored_is_refused(tmp_path: Path) -> None:
+    store = RunStore(tmp_path)
+    store.append_analysis(RUN, make_analysis("r1"))
+    with pytest.raises(ToolFailure, match="already analyzed"):
+        store.append_analysis(RUN, make_analysis("r1", "https://example.com/other"))
+    assert len(store.load_analyses(RUN)) == 1
+
+
+def test_answers_and_analyses_are_kept_apart_and_a_damaged_one_names_its_file(
+    tmp_path: Path,
+) -> None:
+    store = RunStore(tmp_path)
+    store.append_answer(RUN, make_answer("r1"))
+    store.append_analysis(RUN, make_analysis("r1"))
+    assert store.answer_ids(RUN) == ["r1"] and len(store.load_analyses(RUN)) == 1
+    (tmp_path / RUN / ANALYSES_FILE_NAME).write_text("not json\n", encoding="utf-8")
+    with pytest.raises(ToolFailure, match=r"analyzed_answers\.jsonl.*damaged at line 1"):
+        store.load_analyses(RUN)
+    assert store.answer_ids(RUN) == ["r1"]
+
+
+def test_analyses_are_refused_for_an_id_that_leaves_the_runs_folder(tmp_path: Path) -> None:
+    store = RunStore(tmp_path / "runs")
+    with pytest.raises(ToolFailure, match="invalid run id"):
+        store.append_analysis("../x", make_analysis())
+    with pytest.raises(ToolFailure, match="invalid run id"):
+        store.load_analyses("a/b")

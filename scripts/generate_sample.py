@@ -29,13 +29,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from pydantic import Field
-
 from ai_share_of_voice.errors import ToolFailure
 from ai_share_of_voice.exceptions import BudgetExceeded, ConfigurationError
 from ai_share_of_voice.llm_client import SimulatedClient, Transport, client_from_env
+from ai_share_of_voice.sampling import SubjectAnswer, build_prompt, load_questions
 from ai_share_of_voice.schemas.analysis import RawAnswer
-from ai_share_of_voice.schemas.base import Contract
 from ai_share_of_voice.schemas.llm import ModelClient
 from ai_share_of_voice.schemas.questions import Question, QuestionPanel
 
@@ -45,15 +43,8 @@ DEFAULT_LOG = Path("runs/llm_calls.jsonl")
 DEFAULT_ANSWERS = 60
 DEFAULT_CAP_USD = 0.50
 MAX_CONSECUTIVE_FAILURES = 3
-MAX_ANSWER_CHARS = 20_000
 COLUMNS = ("response_id", "question_id", "batch_index", "model", "created_at", "text")
 _FORMULA_STARTS = ("=", "+", "-", "@", "\t", "\r")
-
-
-class SubjectAnswer(Contract):
-    """Schema of the measured model's reply: the whole answer in one field."""
-
-    answer: str = Field(min_length=1, max_length=MAX_ANSWER_CHARS)
 
 
 @dataclass
@@ -66,12 +57,6 @@ class Report:
     stopped: str | None = None
 
 
-def load_questions(path: Path | str) -> QuestionPanel:
-    """Read the question panel from a CSV with the columns ``id,text,intent``."""
-    with Path(path).open(encoding="utf-8-sig", newline="") as handle:
-        return QuestionPanel(questions=tuple(Question(**row) for row in csv.DictReader(handle)))
-
-
 def plan(panel: QuestionPanel, total: int) -> list[tuple[Question, int]]:
     """The ``total`` (question, repetition) pairs, round-robin over the questions."""
     questions = panel.questions
@@ -81,15 +66,6 @@ def plan(panel: QuestionPanel, total: int) -> list[tuple[Question, int]]:
 def response_id(question: Question, repetition: int) -> str:
     """Stable id, so a rerun recognises the answers it already has."""
     return f"sample-{question.id}-b{repetition}"
-
-
-def build_prompt(question: Question) -> str:
-    """The question, as a user would ask it; nothing that could name or hint at a brand."""
-    return (
-        "Answer the question as a helpful assistant would, in the language of the question. "
-        "Write your whole answer in the answer field.\n\n"
-        f"Question: {question.text}"
-    )
 
 
 def neutralize(text: str) -> str:
