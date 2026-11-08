@@ -128,6 +128,18 @@ You should see:
   whole graph with simulated nodes, so it needs no key and spends nothing. The run files are written
   to the `runs/` folder, which Git ignores.
 
+### 7. Run the graph with real stages (optional, spends money)
+
+Task C2 swaps the simulated nodes for real ones one stage at a time, always in this order: `client` (the measured model, the mention analysis, the real statistics and stopping rule), then `mcp` (the sources the answers cite, checked with the sources service), then `vision` (our own chart and the saved screenshots, read by the vision model):
+
+```bash
+python scripts/real_run.py                           # stage client, run cap 1.00 USD
+python scripts/real_run.py --stages client,mcp
+python scripts/real_run.py --stages client,mcp,vision --cap 2
+```
+
+It needs `LLM_MODE=live` and your key in `.env`; the vision stage also needs `VISION_MODEL` and its prices. It refuses to run with the simulated client. Every model call counts against the run cap and the person cap and is written to `runs/llm_calls.jsonl`. The run pauses at the approval step and asks for your decision unless `--yes` or `--no` is supplied. The data of the run is in `runs/<run_id>/` (`brief.json`, `raw_answers.jsonl`, `analyzed_answers.jsonl`, `answers.csv`, `metrics.csv`, `charts/`). The question panel is fixed for food delivery in Madrid (`data/questions_es.csv`). The writer is still simulated, so the approval covers a simulated draft and no report is written.
+
 ### Troubleshooting
 
 | Symptom | Cause | Fix |
@@ -228,7 +240,7 @@ Statistical reasons come first, so the explanation says why the result is good e
 - Mentions are matched by name and variants: paraphrases ("the orange delivery app") and brands outside `data/competitors.csv` can be missed (see [decision 7](docs/decisions.md#7-untracked-brands-in-answers)).
 - No causality is claimed between a cited web source and a recommendation.
 - A model API response may differ from what a person sees in an assistant app, which may add web search or other settings.
-- Spending limits protect only calls that pass through a client that enforces the cap. CrewAI agents built with `build_budgeted_agents` (`agents/factory.py`) are routed through that client by an adapter (task A2b); agents given any other `llm`, such as a model name string, call the provider by themselves and are not covered. The adapter was written against the CrewAI 1.15 documentation and tested with a real CrewAI task using a simulated ModelClient; live provider calls have not been tested.
+- Spending limits protect only calls that pass through a client that enforces the cap. CrewAI agents built with `build_budgeted_agents` (`agents/factory.py`) are routed through that client by an adapter (task A2b); agents given any other `llm`, such as a model name string, call the provider by themselves and are not covered. The adapter was written against the CrewAI 1.15 documentation and has not been run with a live CrewAI by its author.
 
 ## Sections (owners)
 - Architecture, process justification and ethics — J
