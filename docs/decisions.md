@@ -71,7 +71,7 @@ The same model is used for both roles during the initial project phase to simpli
 
 - **Problem:** Answers can recommend brands that are not in `data/competitors.csv`. Ignoring them hides real competitors.
 - **Decision:** The extractor records untracked brands per answer. The report ranks them by mention rate with an interval and suggests reviewing frequent ones for addition to the competitor list in a subsequent run.
-- **Threshold to suggest a new competitor:** At least 10% of sampled answers.
+- **Threshold to suggest a new competitor:** The brand must appear in at least 10% of all valid sampled answers. Each answer counts at most once per brand, regardless of how many times the brand is mentioned in that answer.
 - **Validation condition:** The brand must appear in at least two different batches.
 - **Action:** Flag the brand for human review. Do not automatically add it to `data/competitors.csv`.
 - **Implementation note:** This requires a change to `AnalyzedResponse` in `schemas/`; it must be implemented in a separate PR, with the team notified first.
