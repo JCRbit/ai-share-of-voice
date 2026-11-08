@@ -1,4 +1,4 @@
-"""Sends the model turns of a CrewAI agent through ``ModelClient``.
+"""Sends the model turns of a CrewAI agent through ``ModelClient`` (owner: An, task A2b).
 
 A CrewAI agent talks to its own LLM client, which would bypass the spending cap and the token
 and cost log of ``ModelClient``. This module is the part of the fix that does not need CrewAI:
