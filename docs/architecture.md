@@ -193,16 +193,17 @@ The following table distinguishes implemented modules from end-to-end integratio
 | Report, tracking CSV, and finalization | A7 | Implemented; the real end-to-end path depends on graph integration and explicit approval |
 | Deterministic stopping policy | D2 | Implemented in `stats/stopping.py`; graph currently uses simulated stopping behavior, integration pending |
 | Statistics tool and chart functions | D3 | Implemented in `tools/stats_tool.py` and `stats/charts.py`; agent, graph, and report integration pending |
-| Real model client with spending-cap enforcement | I3 | Implemented and locally tested; integration with graph sampling remains pending verification |
-| CrewAI agent calls through the model client | A2b | Adapter implemented and tested with a real CrewAI task and a simulated client; live provider and graph integration remain unverified |
-| Per-run store of the brief and raw answers, and a mention tool that needs only ids | A3b | Implemented (`run_store.py`, `StoredMentionTool`); the sampling node that writes the store is pending (C2) |
-| MCP source server | I4 | Implemented and tested locally; graph integration pending (C2) |
-| Vision tool | I5 | Implemented on the budgeted client (I3); tested with simulated clients only; graph integration pending (C2) |
+| Real model client with spending-cap enforcement | I3 | Implemented and locally tested; integrated into the C2 real sampling and vision nodes, with live provider execution still pending |
+| CrewAI agent calls through the model client | A2b | Adapter implemented (`agents/llm_adapter.py`, `agents/crewai_bridge.py`, `build_budgeted_agents`); not yet run with a real CrewAI crew or in the graph |
+| Per-run store of the brief and the answers, and a mention tool that needs only ids | A3b, C2 | Implemented (`run_store.py`, `StoredMentionTool`); the real sampling node of C2 writes the store |
+| MCP source server | I4 | Implemented and tested locally; the C2 research node uses its service in-process (`SourcesService.check_url`), not over the MCP protocol |
+| Vision tool | I5 | Implemented on the budgeted client (I3); the C2 screenshots node uses it; tested with simulated clients and a fake transport only |
 | End-to-end simulated check | C0 | Implemented (`tests/test_end_to_end.py`, `tests/conftest.py`): brief to approval offline, `mock_run.py` and the UI runner kept in step; nodes are still fakes until C2 |
 | Real answer sample generator | I7 | Script implemented (`scripts/generate_sample.py`, live mode only, resumable, under the budgeted client); `data/sample_answers.csv` still has to be generated with a live key |
 | Interface skeleton: Brief, Activity and Results tabs, background run, spend bar | I6 | Implemented over the simulated graph (`ui/mock_run.py`, auto-approved); it has not been run against a live Gradio install by its author, and no real run is wired in (C2) |
 | Interface: approval buttons, report and downloads | A4, D4 | Planned unless subsequent implementation has been verified |
-| First full real run | C2 | Planned until a complete real run has been executed and its outputs inspected |
+| Real nodes by stage: client, mcp, vision | C2 | Implemented (`real_nodes.py`, `real_run.py`, `scripts/real_run.py`) and tested with simulated clients, a fake transport and a fake sources service; no live run has been executed, and the writer, Skeptic and `finalize` stay simulated |
+| First full real run | C2 | Pending: the staged real-run implementation is in place, but a complete live run and inspection of its outputs have not yet been performed |
 
 Update this table when changes are implemented and merged. In particular, distinguish a tested module from a component integrated into the active graph, and distinguish a simulated end-to-end run from a real run involving external services.
 
