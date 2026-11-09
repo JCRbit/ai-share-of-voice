@@ -175,6 +175,7 @@ The graph topology supports the Skeptic review loop, and tests explicitly inject
 | `automation/` | Report generation, tracking CSV, and finalization |
 | `ui/mock_run.py` | Runs the simulated graph end to end |
 | `app.py`, `ui/brief_tab.py`, `ui/run_manager.py`, `ui/render.py` | Gradio interface skeleton: form, one background run at a time, page content |
+| `ui/results_tab.py` | Results tab: figures with intervals, charts and downloads of a run folder |
 
 Module names and responsibilities should be checked against the current repository when this document is updated. The table describes the intended organization and does not imply that every component is wired into the production graph.
 
@@ -201,7 +202,8 @@ The following table distinguishes implemented modules from end-to-end integratio
 | End-to-end simulated check | C0 | Implemented (`tests/test_end_to_end.py`, `tests/conftest.py`): brief to approval offline, `mock_run.py` and the UI runner kept in step; nodes are still fakes until C2 |
 | Real answer sample generator | I7 | Script implemented (`scripts/generate_sample.py`, live mode only, resumable, under the budgeted client); `data/sample_answers.csv` still has to be generated with a live key |
 | Interface skeleton: Brief, Activity and Results tabs, background run, spend bar | I6 | Implemented over the simulated graph (`ui/mock_run.py`, auto-approved); it has not been run against a live Gradio install by its author, and no real run is wired in (C2) |
-| Interface: approval buttons, report and downloads | A4, D4 | Planned unless subsequent implementation has been verified |
+| Results tab: figures with intervals, charts and downloads | D4 | Implemented (`ui/results_tab.py`) and tested without Gradio (figures, charts, downloads, formula-safe CSV copies, path checks); it has not been run against a live Gradio install by its author, and the simulated run of the interface saves no analyzed answers, so it shows none |
+| Interface: approval buttons | A4 | Planned unless subsequent implementation has been verified |
 | Real nodes by stage: client, mcp, vision | C2 | Implemented (`real_nodes.py`, `real_run.py`, `scripts/real_run.py`) and tested with simulated clients, a fake transport and a fake sources service; no live run has been executed, and the writer, Skeptic and `finalize` stay simulated |
 | First full real run | C2 | Pending: the staged real-run implementation is in place, but a complete live run and inspection of its outputs have not yet been performed |
 
