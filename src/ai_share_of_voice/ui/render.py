@@ -94,16 +94,32 @@ def status_line(snapshot: RunSnapshot) -> str:
 
 
 def results_text(snapshot: RunSnapshot) -> str:
-    """Placeholder for the results tab (D4 replaces it with the report and downloads)."""
+    """Text of the results tab while a run has no analyzed answers."""
     if snapshot.status == IDLE:
         return "No run yet. Fill in the Brief tab and press **Start run**."
     if snapshot.status == RUNNING:
-        return "The run is in progress. The summary appears here when it ends."
+        return "The run is in progress. Its results will appear here when it ends."
+
     lines = [
-        f"Run `{snapshot.run_id}` ended: {STATUS_LABELS.get(snapshot.status, snapshot.status)}.",
-        f"{len(snapshot.events)} events, spend ${snapshot.spent_usd:.2f}.",
+        f"**Run `{snapshot.run_id}` ended:** "
+        f"{STATUS_LABELS.get(snapshot.status, snapshot.status)}.",
+        f"{len(snapshot.events)} events, spend **${snapshot.spent_usd:.2f}**.",
+        (
+            "**This was a simulation.** It demonstrates the workflow, "
+            "but does not query real AI models or produce analyzed answers."
+        ),
     ]
     if snapshot.error:
         lines.append(f"Error: {escape_markdown(shorten(snapshot.error))}")
-    lines.append("The report and its downloads will be listed here (task D4).")
+    lines.extend(
+        [
+            "**No results to display yet:** this run saved no analyzed answers "
+            "(`answers.csv`), so there are no metrics, charts or downloads.",
+            (
+                "**Next step:** run the real analysis workflow to collect "
+                "and analyze answers. Results will appear here once "
+                "`answers.csv` has been generated."
+            ),
+        ]
+    )
     return "\n\n".join(lines)
