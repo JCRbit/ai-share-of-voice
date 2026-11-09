@@ -140,6 +140,19 @@ python scripts/real_run.py --stages client,mcp,vision --cap 2
 
 It needs `LLM_MODE=live` and your key in `.env`; the vision stage also needs `VISION_MODEL` and its prices. It refuses to run with the simulated client. Every model call counts against the run cap and the person cap and is written to `runs/llm_calls.jsonl`. The run pauses at the approval step and asks for your decision unless `--yes` or `--no` is supplied. The data of the run is in `runs/<run_id>/` (`brief.json`, `raw_answers.jsonl`, `analyzed_answers.jsonl`, `answers.csv`, `metrics.csv`, `charts/`). The question panel is fixed for food delivery in Madrid (`data/questions_es.csv`). The writer is still simulated, so the approval covers a simulated draft and no report is written.
 
+### 8. Open the interface and read the results of a run (optional)
+
+```bash
+python app.py
+```
+
+Open the address it prints (it listens on `127.0.0.1` only). The **Brief** tab validates the form and starts a simulated run, auto-approved; **Activity** lists its events. The **Results** tab (task D4) reads any run folder in `runs/` that has an `answers.csv`, for example one made by `scripts/real_run.py`:
+
+- a table with every metric of every brand, its estimate and its 95% interval, from the vetted statistics of `stats/`;
+- one chart per metric, and the downloads: the report and the tracking CSV once the run was approved, the answers and metrics tables, the charts and the event log.
+
+The run of the Brief tab is simulated and saves no analyzed answers, so its Results say so. Every figure is a dated sample of one model's answers, not a market share, and with fewer than ten questions the tab warns that the intervals are too optimistic. The CSV files are offered as copies in `runs/<run_id>/downloads/` whose text cells cannot start a formula in a spreadsheet; the files the code reads back are not changed. To preview the tab without spending anything, copy `tests/fixtures/sample_answers.csv` to `runs/preview/answers.csv` and reload (three questions, so it shows the warning).
+
 ### Troubleshooting
 
 | Symptom | Cause | Fix |

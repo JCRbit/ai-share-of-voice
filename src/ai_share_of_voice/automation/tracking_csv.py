@@ -42,6 +42,9 @@ def _safe(value: str) -> str:
     return f"'{value}" if value.startswith(_FORMULA_PREFIXES) else value
 
 
+neutralize_formula = _safe  # public name, so other CSV exports apply the same rule
+
+
 def build_row(data: ReportData, report_path: Path) -> dict[str, str]:
     """Turn the report data into the tracking row of the run."""
     summary = data.summary
