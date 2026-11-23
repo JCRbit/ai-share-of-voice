@@ -13,12 +13,25 @@ from pydantic import BaseModel, Field
 
 from ai_share_of_voice.voice import VOICE_GUIDE, join_names, overlaps, percent
 
+# Words that name a sector, checked in order. The first five are the demo's own sectors; the
+# rest use the same labels as the sector picker (``ui.catalog.SECTORS``) so the card preselects it.
 SECTOR_WORDS = {
     "Comida a domicilio": ("comida", "domicilio", "delivery", "reparto", "cena", "food"),
     "Academias de idiomas": ("idioma", "inglés", "language school", "academia"),
     "Cafeterías": ("café", "cafeter", "coffee"),
     "Gimnasios": ("gimnas", "gym", "fitness"),
     "Coworking": ("coworking",),
+    "Supermercados y alimentación": ("supermercado", "supermarket", "grocer", "alimentación"),
+    "Restaurantes y bares": ("restaurante", "restaurant", " bares", " bars", "tapas"),
+    "Moda y tiendas de ropa": ("moda", "ropa", "fashion", "clothing", "clothes"),
+    "Banca y seguros": ("banca", "bancos", "banco ", "seguros", "banking", "bank", "insurance"),
+    "Telefonía e internet": ("telefon", "móvil", "fibra", "internet", "telecom", "mobile"),
+    "Viajes y hoteles": ("viaje", "hotel", "travel", "vuelo", "flight"),
+    "Salud y clínicas": ("clínica", "dentist", "salud", "health", "clinic"),
+    "Educación y formación": ("educación", "formación", "universidad", "education", "training"),
+    "Tecnología y electrónica": ("tecnolog", "electrónica", "electronics", "tech"),
+    "Hogar y reformas": ("hogar", "reforma", "muebles", "home", "furniture", "renovation"),
+    "Automoción y movilidad": ("coche", "automoción", "movilidad", "car ", "cars", "mobility"),
 }
 SECTOR_EN = {
     "Comida a domicilio": "Food delivery",
@@ -26,6 +39,17 @@ SECTOR_EN = {
     "Cafeterías": "Coffee shops",
     "Gimnasios": "Gyms",
     "Coworking": "Coworking",
+    "Supermercados y alimentación": "Supermarkets and groceries",
+    "Restaurantes y bares": "Restaurants and bars",
+    "Moda y tiendas de ropa": "Fashion and clothing stores",
+    "Banca y seguros": "Banking and insurance",
+    "Telefonía e internet": "Mobile and internet providers",
+    "Viajes y hoteles": "Travel and hotels",
+    "Salud y clínicas": "Health and clinics",
+    "Educación y formación": "Education and training",
+    "Tecnología y electrónica": "Technology and electronics",
+    "Hogar y reformas": "Home and renovation",
+    "Automoción y movilidad": "Cars and mobility",
 }
 CITIES = (
     "Madrid",
@@ -41,6 +65,7 @@ CITIES = (
     "Lyon",
 )
 _VERSUS = r"(?:frente a|contra|vs\.?|versus|compared (?:to|with)|against)"
+_PLACE = r"[A-ZÁÉÍÓÚÑ][\wáéíóúñ]+"
 _STOP = r"(?:\s+(?:en|in|para|for|de|del|como)\s+|[.?!]|$)"
 
 
@@ -67,10 +92,12 @@ _SECTOR_HINTS = tuple(w for words in SECTOR_WORDS.values() for w in words)
 
 def _is_name(part: str) -> bool:
     """A competitor is a short name, not a trailing phrase like «comida a domicilio»."""
-    if not part or len(part.split()) > 4:
+    if not part or len(part.split()) > 4 or part in CITIES:
         return False
-    lowered = part.lower()
-    return not any(hint in lowered for hint in _SECTOR_HINTS) and part not in CITIES
+    # «supermercados» or «comida a domicilio» after the list is the sector, not a rival; a
+    # capitalised name such as «Banco Santander» stays a brand even if it contains a sector word.
+    lowered = f" {part.lower()} "
+    return part[0].isupper() or not any(hint in lowered for hint in _SECTOR_HINTS)
 
 
 def read_brief(text: str, lang: str = "es") -> BriefDraft:
@@ -90,6 +117,11 @@ def read_brief(text: str, lang: str = "es") -> BriefDraft:
                 else ("Francia" if city in ("París", "Lyon") else "España")
             )
             break
+    if not draft.city:
+        # A city we don't list: the capitalised words after the last «en» / «in».
+        found = re.findall(rf"\b(?:en|in)\s+({_PLACE}(?:\s+{_PLACE})?)", text)
+        if found:
+            draft.city = found[-1]
     match = re.search(rf"(.+?)\s+{_VERSUS}\s+(.+?){_STOP}", text, flags=re.I)
     if match:
         before, after = match.group(1), match.group(2)
@@ -216,7 +248,22 @@ def answer_question(question: str, facts: dict[str, Any], lang: str) -> str:
             if es
             else "I keep going while the margin can still improve enough and there is budget left."
         )
-    if any(w in q for w in ("gana", "win", "compet", "mejor que", "better", "quién", "who")):
+    wins = (
+        "gana",
+        "gano",
+        "ganamos",
+        "ganar",
+        "win",
+        "beat",
+        "ahead",
+        "compet",
+        "mejor que",
+        "más que",
+        "better",
+        "quién",
+        "who",
+    )
+    if any(w in q for w in wins):
         if not others:
             return "No hay competidores en esta medición." if es else "No competitors in this run."
         ranked = sorted(brands, key=lambda b: _pct(b, "recommend"), reverse=True)

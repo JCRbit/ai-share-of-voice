@@ -34,11 +34,11 @@ export function Funnel({ points, target, maxRounds, stop, lang, height = 210 }) 
           <line x1={x(i)} x2={x(i)} y1={y(p.high)} y2={y(p.low)} stroke="#1c1a17" strokeWidth="1.5" />
           <line x1={x(i) - 5} x2={x(i) + 5} y1={y(p.high)} y2={y(p.high)} stroke="#1c1a17" strokeWidth="1.5" />
           <line x1={x(i) - 5} x2={x(i) + 5} y1={y(p.low)} y2={y(p.low)} stroke="#1c1a17" strokeWidth="1.5" />
-          <circle cx={x(i)} cy={y(p.estimate)} r="5" fill="#c2410c" />
+          <circle className="pop" style={{ animationDelay: `${0.15 + i * 0.12}s` }} cx={x(i)} cy={y(p.estimate)} r="5" fill="#c2410c" />
         </g>
       ))}
       {points.length > 1 && (
-        <polyline points={points.map((p, i) => `${x(i)},${y(p.estimate)}`).join(" ")} fill="none" stroke="#c2410c" strokeWidth="2" />
+        <polyline key={points.length} className="draw" pathLength="1" points={points.map((p, i) => `${x(i)},${y(p.estimate)}`).join(" ")} fill="none" stroke="#c2410c" strokeWidth="2" />
       )}
       {Array.from({ length: n }).map((_, i) => (
         <text key={i} x={x(i)} y={H - 10} fontSize="10" textAnchor={i === n - 1 && n > 1 ? "end" : i === 0 ? "start" : "middle"} fill="#6b6358" fontFamily="IBM Plex Mono">
@@ -113,7 +113,7 @@ export function Trend({ points, lang }) {
       {points.map((p, i) => (
         <g key={p.run_id}>
           <line x1={x(i)} x2={x(i)} y1={y(p.ci_high)} y2={y(p.ci_low)} stroke="#1c1a17" />
-          <circle cx={x(i)} cy={y(p.mention)} r="4" fill="#c2410c" />
+          <circle className="pop" style={{ animationDelay: `${0.15 + i * 0.1}s` }} cx={x(i)} cy={y(p.mention)} r="4" fill="#c2410c" />
           <text x={x(i)} y={H - 8} fontSize="10" textAnchor="middle" fill="#6b6358" fontFamily="IBM Plex Mono">{p.date.slice(5)}</text>
         </g>
       ))}

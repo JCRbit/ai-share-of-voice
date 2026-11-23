@@ -104,7 +104,8 @@ export default function ChatApp({ lang, setLang }) {
       setResults(null);
       setAnswers([]);
       setTab("live");
-      setPanelOpen(true);
+      // On a narrow window the panel would cover the chat box: open it only when there is room.
+      setPanelOpen(window.matchMedia("(min-width: 1101px)").matches);
       setConv((c) => ({ ...c, runId: run_id, questions, stage: "running",
         messages: [...c.messages, { role: "user", text: t(lang, "start") }, { role: "ai", text: t(lang, "starting"), card: "live" }] }));
     } catch (e) {

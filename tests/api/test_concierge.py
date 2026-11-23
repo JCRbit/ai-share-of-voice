@@ -76,3 +76,19 @@ def test_other_intents_use_the_figures():
     assert "búsqueda web estaba apagada" in answer_question("¿qué fuentes?", f, "es")
     assert answer_question("hola", f, "es").startswith("Titular.")
     assert "don't have results" in answer_question("hi", {"brands": []}, "en")
+
+
+def test_more_sectors_and_unlisted_cities():
+    d = read_brief("Mercadona frente a Carrefour, Lidl y Dia, supermercados en Valencia")
+    assert d.competitors == ["Carrefour", "Lidl", "Dia"]
+    assert d.sector == "Supermercados y alimentación"
+    d = read_brief("Banco Santander frente a BBVA y CaixaBank, banca en Granada")
+    assert d.brand == "Banco Santander" and d.city == "Granada"
+
+
+def test_beating_a_rival_is_a_who_wins_question():
+    f = facts(
+        {"estimate": 0.6, "ci_low": 0.4, "ci_high": 0.8},
+        {"estimate": 0.5, "ci_low": 0.3, "ci_high": 0.7},
+    )
+    assert "no puedo decir que gane" in answer_question("¿Le gano a Just Eat?", f, "es")

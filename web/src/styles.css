@@ -282,3 +282,100 @@ mark.b-rec { box-shadow: inset 0 -3px 0 var(--green); }
 }
 
 .only-mobile { display: none; }
+
+/* ---------------------------------------------------------------------------------------------
+   Motion. Ink-on-paper: things are set down, typed, underlined and drawn, never glowing or bouncy.
+   One easing for everything, short durations, and nothing moves under "reduce motion".
+   --------------------------------------------------------------------------------------------- */
+:root { --ease: cubic-bezier(0.2, 0.7, 0.2, 1); }
+
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes settle { 0% { opacity: 0; transform: translateY(-26px) rotate(3deg); } 70% { opacity: 1; transform: translateY(2px) rotate(-1.6deg); } 100% { opacity: 1; transform: rotate(-1.2deg); } }
+@keyframes grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes pop { 0% { opacity: 0; transform: scale(0.2); } 70% { transform: scale(1.25); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes caret { 50% { opacity: 0; } }
+@keyframes slide-in-right { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes unfold { from { opacity: 0; transform: translateY(10px) scaleY(0.97); } to { opacity: 1; transform: none; } }
+@keyframes tick { 0% { transform: scale(0.6); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* landing: the page is set down line by line */
+.enter { opacity: 0; animation: rise 0.7s var(--ease) both; animation-delay: var(--d, 0s); }
+.answer-card.enter { animation-name: settle; animation-duration: 0.9s; }
+[data-reveal] { opacity: 0; transform: translateY(22px); transition: opacity 0.7s var(--ease), transform 0.7s var(--ease); transition-delay: var(--d, 0s); }
+[data-reveal].in { opacity: 1; transform: none; }
+.hero h1 em { display: inline-block; animation: rise 0.8s var(--ease) 0.45s both; }
+
+.answer-card .q { min-height: 2.4em; }
+.caret { display: inline-block; width: 2px; height: 0.9em; margin-left: 2px; vertical-align: -0.08em; background: var(--rust); animation: caret 0.9s steps(1) infinite; }
+.caret.off { opacity: 0; animation: none; transition: opacity 0.4s; }
+.answer-card .a { opacity: 0; transform: translateY(6px); transition: opacity 0.5s var(--ease), transform 0.5s var(--ease); }
+.answer-card .a.show { opacity: 1; transform: none; }
+/* the markers are drawn on after the answer appears, like a highlighter */
+.answer-card .a .sweep { border-bottom: 0; padding: 0 2px; background-repeat: no-repeat; background-size: 0% 100%; transition: background-size 0.6s var(--ease); transition-delay: var(--d, 0.5s); }
+.answer-card .a .sweep.mark-rec { background-image: linear-gradient(#f6d7c3, #f6d7c3); }
+.answer-card .a .sweep.mark-named { background-image: linear-gradient(var(--mustard), var(--mustard)); background-size: 0% 3px; background-position: 0 100%; }
+.answer-card .a.show .sweep.mark-rec { background-size: 100% 100%; }
+.answer-card .a.show .sweep.mark-named { background-size: 100% 3px; }
+.answer-card .dots { margin-left: auto; display: inline-flex; gap: 6px; }
+.answer-card .dots i { width: 18px; height: 2px; background: var(--rule); transition: background 0.4s, width 0.4s var(--ease); }
+.answer-card .dots i.on { background: var(--ink); width: 28px; }
+
+.btn { transition: background 0.2s, color 0.2s, transform 0.15s var(--ease), box-shadow 0.2s; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn-ink:hover:not(:disabled), .btn-rust:hover:not(:disabled) { box-shadow: 3px 3px 0 var(--ink); transform: translate(-2px, -2px); }
+.plans-row > div { transition: background 0.3s; }
+.plans-row > div:hover { background: var(--sheet); }
+.l-nav a { background-image: linear-gradient(currentColor, currentColor); background-size: 0% 1px; background-position: 0 100%; background-repeat: no-repeat; transition: background-size 0.3s var(--ease); }
+.l-nav a:hover { background-size: 100% 1px; }
+
+/* app: route change */
+.landing, .app { animation: fade 0.35s ease-out both; }
+
+/* chat: each message is set down where it belongs */
+.msg-ai { animation: rise 0.45s var(--ease) both; }
+.msg-user { animation: rise 0.35s var(--ease) both; transform-origin: right bottom; }
+.msg-ai .card, .msg-ai .agents { animation: unfold 0.5s var(--ease) 0.12s both; transform-origin: top; }
+.suggest button { transition: background 0.2s, border-color 0.2s, transform 0.15s var(--ease); }
+.suggest button:hover:not(:disabled) { border-color: var(--ink); transform: translateY(-1px); }
+.chip { animation: pop 0.3s var(--ease) both; }
+.inputbar { transition: box-shadow 0.25s, border-color 0.25s; }
+.inputbar:focus-within { box-shadow: 4px 4px 0 var(--ink); }
+
+/* agents: rows change state smoothly, a finished step ticks */
+.agents li { transition: background 0.4s, color 0.4s; }
+.agents li .dot { transition: background 0.3s, color 0.3s; }
+.agents li.done .dot { animation: tick 0.4s var(--ease); }
+.agents li.now { position: relative; overflow: hidden; }
+.agents li.now::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--rust), transparent); background-size: 200% 100%; animation: shimmer 1.6s linear infinite; }
+
+/* side panel, tabs and the report sheets */
+.panel:not(.closed) { animation: slide-in-right 0.4s var(--ease) both; }
+.tabs button { transition: color 0.2s, border-color 0.3s; }
+.panel-body > * { animation: rise 0.4s var(--ease) both; }
+.panel-body > *:nth-child(2) { animation-delay: 0.06s; } .panel-body > *:nth-child(3) { animation-delay: 0.12s; } .panel-body > *:nth-child(4) { animation-delay: 0.18s; }
+.sheet { animation: rise 0.5s var(--ease) both; }
+.sheets .sheet:nth-child(2) { animation-delay: 0.08s; } .sheets .sheet:nth-child(3) { animation-delay: 0.16s; } .sheets .sheet:nth-child(n+4) { animation-delay: 0.24s; }
+.thumbs button { transition: border-color 0.2s, transform 0.2s var(--ease); }
+.thumbs button:hover { transform: translateX(2px); }
+.stat .v { animation: fade 0.4s ease-out both; }
+
+/* charts: bars grow from zero, the margin appears after, the funnel line is drawn */
+.track .fill { transform-origin: left; animation: grow-x 0.9s var(--ease) both; }
+.track + .track .fill { animation-delay: 0.12s; }
+.track .ci { animation: fade 0.4s ease-out 0.7s both; }
+.bar-row { animation: rise 0.45s var(--ease) both; }
+.bar-row:nth-child(2) { animation-delay: 0.08s; } .bar-row:nth-child(3) { animation-delay: 0.16s; } .bar-row:nth-child(n+4) { animation-delay: 0.24s; }
+svg .draw { stroke-dasharray: 1; animation: draw 1s var(--ease) both; }
+svg .pop { transform-box: fill-box; transform-origin: center; animation: pop 0.45s var(--ease) both; }
+.stream .a { animation-duration: 0.45s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; transition-delay: 0s !important; }
+  [data-reveal] { opacity: 1; transform: none; }
+}
+@media print {
+  .enter, [data-reveal], .sheet, .msg-ai, .bar-row, .track .fill { opacity: 1 !important; transform: none !important; animation: none !important; }
+}
