@@ -90,6 +90,7 @@ generated `runs/` files are ignored by Git.
 | `SPEND_CAP_USD` | Model-call budget per run; the example file sets `0.50` USD |
 | `SEARCH_PROVIDER` | `none` (fixtures), `duckduckgo` or `tavily` |
 | `SEARCH_API_KEY` | Required for Tavily |
+| `DEMO_PASSWORD` | Optional. In live mode the app asks for it before any model call (public demos) |
 
 Subject and vision roles reuse an available key for the same provider unless their own key
 is set. Blank model names use [the defaults in `config.py`](src/ai_share_of_voice/config.py).
@@ -313,4 +314,5 @@ Roles follow the [project plan](docs/PROJECT_PLAN.md); the git history shows the
 - [Decisions](docs/decisions.md) — methodology and team decisions.
 - [Project plan](docs/PROJECT_PLAN.md) — phases, owners and tasks.
 - [Local integration spec](specs/local-integration.md) — branch scope, implementation log and open items.
+- [Deploying the demo](docs/DEPLOY.md) — Hugging Face Spaces and the demo password.
 - [Contributing](docs/CONTRIBUTING.md) — workflow, review rules and local hooks.
