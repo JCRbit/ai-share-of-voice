@@ -26,6 +26,7 @@ from ai_share_of_voice.panel import check_user_panel  # noqa: E402
 from ai_share_of_voice.tools.mcp_sources_client import open_stdio_sources  # noqa: E402
 from ai_share_of_voice.ui import catalog  # noqa: E402
 from ai_share_of_voice.ui import components as ui  # noqa: E402
+from ai_share_of_voice.ui.access import Access, gate_from_env  # noqa: E402
 from ai_share_of_voice.ui.i18n import event_status, note, stage, t  # noqa: E402
 from ai_share_of_voice.ui.port_guard import PortGuard  # noqa: E402
 from ai_share_of_voice.ui.run_controller import BriefForm, RunController, panel_letters  # noqa: E402
@@ -74,6 +75,14 @@ def friendly_error(error: Exception) -> str:
 def build_app(controller: RunController) -> gr.Blocks:
     settings = controller.settings
     simulated = settings.mode is LlmMode.SIMULATED
+    gate = gate_from_env(os.environ, settings.mode)
+
+    def refusal(lang: str, attempt: str | None) -> str:
+        """Why this password does not open the gate, or an empty string when it does."""
+        result = gate.check(attempt)
+        if result is Access.OK:
+            return ""
+        return t(lang, "access_locked" if result is Access.LOCKED else "access_denied")
 
     def tech_details(lang: str) -> str:
         return (
@@ -196,6 +205,13 @@ def build_app(controller: RunController) -> gr.Blocks:
                     review_message = gr.Markdown()
                 review_used = gr.State(False)  # True once the user loaded the questions
                 cost = gr.Markdown(estimate("es", 10, 3))
+                # Fixed bilingual label: it is not part of the language switch. Only drawn when
+                # the host set DEMO_PASSWORD in live mode; every call that spends budget checks it.
+                password = gr.Textbox(
+                    label="Contraseña de la demo / Demo password",
+                    type="password",
+                    visible=gate.enabled,
+                )
                 start = gr.Button(t("es", "start"), variant="primary", size="lg")
                 start_message = gr.Markdown()
 
@@ -320,7 +336,9 @@ def build_app(controller: RunController) -> gr.Blocks:
             except (ValidationError, ValueError) as error:
                 return None, t(current_lang, "form_error", error=friendly_error(error))
 
-        def on_start(current_lang, used, table, *form_values):
+        def on_start(current_lang, used, table, typed_password, *form_values):
+            if denied := refusal(current_lang, typed_password):
+                return gr.skip(), denied, gr.skip()
             form, message = make_form(current_lang, *form_values)
             if form is None:
                 return gr.skip(), message, gr.skip()
@@ -342,7 +360,9 @@ def build_app(controller: RunController) -> gr.Blocks:
                 return gr.skip(), message, gr.skip()
             return new_id, t(current_lang, "started"), "activity"
 
-        def on_review_load(current_lang, *form_values):
+        def on_review_load(current_lang, typed_password, *form_values):
+            if denied := refusal(current_lang, typed_password):
+                return gr.skip(), denied, gr.skip()
             form, message = make_form(current_lang, *form_values)
             if form is None:
                 return gr.skip(), message, gr.skip()
@@ -370,7 +390,9 @@ def build_app(controller: RunController) -> gr.Blocks:
             batches,
         ]
         review_load.click(
-            on_review_load, [lang, *form_inputs], [review_table, review_message, review_used]
+            on_review_load,
+            [lang, password, *form_inputs],
+            [review_table, review_message, review_used],
         )
         start.click(
             on_start,
@@ -378,6 +400,7 @@ def build_app(controller: RunController) -> gr.Blocks:
                 lang,
                 review_used,
                 review_table,
+                password,
                 brand,
                 competitors,
                 sector,
@@ -728,13 +751,19 @@ def main() -> None:
         controller = build_controller()
     except ConfigError as error:
         raise SystemExit(f"config error: {error}") from None
-    # Close an old instance of this app that still holds the port (never another program).
-    guard = PortGuard(RUNS_DIR / "app.pid")
-    port = guard.claim(DEFAULT_PORT)
-    guard.record(port)
-    atexit.register(guard.release)
-    print(f"AI Share of Voice: http://127.0.0.1:{port}")
+    # A host such as Hugging Face Spaces sets these two: listen where it says, on its fixed port.
+    host = os.environ.get("GRADIO_SERVER_NAME")
+    if host:
+        port = int(os.environ.get("GRADIO_SERVER_PORT", DEFAULT_PORT))
+    else:
+        # Close an old instance of this app that still holds the port (never another program).
+        guard = PortGuard(RUNS_DIR / "app.pid")
+        port = guard.claim(DEFAULT_PORT)
+        guard.record(port)
+        atexit.register(guard.release)
+    print(f"AI Share of Voice: http://{host or '127.0.0.1'}:{port}")
     build_app(controller).launch(
+        server_name=host or "127.0.0.1",
         server_port=port,
         allowed_paths=[str(RUNS_DIR)],
         theme=THEME,
