@@ -3,6 +3,7 @@ import { api, pct, duration } from "../api.js";
 import { t } from "../i18n.js";
 import { Highlighted } from "./Answers.jsx";
 import { CountUp, useReveal, useTypewriter } from "../motion.jsx";
+import { MethodSection, TeamSection } from "./LandingSections.jsx";
 
 // Example answers for the card while there is no approved measurement. Tagged "Ejemplo".
 // Each part is [text, kind]: kind "named" or "rec" gets a marker that sweeps in after the text.
@@ -93,8 +94,9 @@ export default function Landing({ lang, setLang, go }) {
 
   // A run made with the simulated AI is still an example: only live runs count as real answers.
   const simulatedRun = real && real.model === "simulated";
-  const data = real || EXAMPLE;
+  // A demo-mode run is still an example: the page then tells the example's one story (Madrid).
   const isExample = !real || simulatedRun;
+  const data = isExample ? EXAMPLE : real;
   const plans = meta?.plans;
   const es = lang === "es";
   const revealRef = useReveal([lang, real]);
@@ -113,14 +115,14 @@ export default function Landing({ lang, setLang, go }) {
               <button className={lang === "en" ? "on" : ""} style={{ color: lang === "en" ? undefined : "var(--muted)" }} onClick={() => setLang("en")}>EN</button>
             </span>
           </nav>
-          <a className="btn" href="#/app">{es ? "Abrir la app" : "Open the app"}</a>
+          <a className="btn btn-cta" href="#/app">{es ? "Abrir la app" : "Open the app"} <span aria-hidden="true">→</span></a>
         </div>
       </header>
 
       <div className="wrap">
         <div className="dateline enter" style={{ "--d": "0s" }}>
           <span>{es ? "Informe de campo" : "Field report"} {isExample && <span className="tag-example">{t(lang, "exampleTag")}</span>}</span>
-          <span>{data.city} · {real ? real.date : "—"}</span>
+          <span>{data.city}{!isExample && real.date ? ` · ${real.date}` : ""}</span>
           <span>{data.n_answers} {t(lang, "answers")} · {data.n_questions} {es ? "preguntas" : "questions"} · {es ? "1 modelo" : "1 model"}</span>
         </div>
 
@@ -198,7 +200,9 @@ export default function Landing({ lang, setLang, go }) {
         </div>
       </section>
 
-      <section id="metodo" style={{ borderTop: "1px solid var(--ink)" }}>
+      <MethodSection lang={lang} rules={meta?.stop_rules} />
+
+      <section id="limites" style={{ borderTop: "1px solid var(--ink)" }}>
         <div className="wrap" style={{ display: "flex", flexWrap: "wrap", gap: 48, padding: "72px 32px" }}>
           <h2 data-reveal className="serif" style={{ flex: "1 1 320px", margin: 0, fontSize: 44, lineHeight: 1.05 }}>{es ? <>Lo que <em>no</em> te vamos a decir.</> : <>What we <em>won't</em> tell you.</>}</h2>
           <ul className="nots" style={{ flex: "999 1 520px" }}>
@@ -210,10 +214,12 @@ export default function Landing({ lang, setLang, go }) {
         </div>
       </section>
 
-      <footer className="l-foot" id="equipo">
+      <TeamSection lang={lang} go={go} />
+
+      <footer className="l-foot">
         <div className="wrap">
-          <p className="serif" style={{ margin: 0, fontSize: 26 }}>{es ? "Hecho en Madrid por Anas, Javier, Eli y Abdhur." : "Made in Madrid by Anas, Javier, Eli and Abdhur."}</p>
-          <button className="btn btn-rust" onClick={() => go("#/app")}>{es ? "Haz tu primera medición" : "Run your first measurement"}</button>
+          <p className="serif" style={{ margin: 0, fontSize: 22 }}>{es ? "Hecho en Madrid por Anas, Javier, Eli y Abdhur." : "Made in Madrid by Anas, Javier, Eli and Abdhur."}</p>
+          <span className="mono muted" style={{ fontSize: 12 }}>{t(lang, "sample")}</span>
         </div>
       </footer>
     </div>

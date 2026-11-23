@@ -19,9 +19,13 @@ export default function App() {
   const [route, setRoute] = useState(routeOf);
 
   useEffect(() => {
+    // Only a change of page goes back to the top; «#metodo» and the like jump to their section.
+    let last = routeOf();
     const onHash = () => {
-      setRoute(routeOf());
-      window.scrollTo(0, 0);
+      const next = routeOf();
+      setRoute(next);
+      if (next !== last) window.scrollTo(0, 0);
+      last = next;
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);

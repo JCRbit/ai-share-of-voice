@@ -518,7 +518,13 @@ function BriefCard({ brief, meta, lang, busy, onSubmit }) {
         {plan && meta?.mode === "live" && <span className="notice">{es ? `Tiempo medido en real: ~${meta.seconds_per_answer} s por respuesta. Tope de gasto ${usd(meta.cap_usd)}.` : `Measured live: ~${meta.seconds_per_answer} s per answer. Spend cap ${usd(meta.cap_usd)}.`}</span>}
       </div>
       <div className="row">
-        <button className="btn btn-ink" disabled={!ok || busy} onClick={() => onSubmit(b)}>{t(lang, "prepare")} →</button>
+        {/* While questions are being prepared the button stays dark and shows it is working,
+            instead of greying out as if something were wrong. */}
+        <button className={`btn btn-cta ${busy ? "is-busy" : ""}`} disabled={!ok} aria-busy={busy}
+          onClick={() => { if (!busy) onSubmit(b); }}>
+          {busy ? <><span className="spinner" aria-hidden="true" />{es ? "Preparando preguntas…" : "Preparing questions…"}</> : <>{t(lang, "prepare")} →</>}
+        </button>
+        {!ok && <span className="muted" style={{ fontSize: 13 }}>{es ? "Falta la marca, dos competidores, el sector o la ciudad." : "Brand, two competitors, sector or city still missing."}</span>}
         {!ok && <span className="notice">{es ? "Falta marca, dos competidores, sector o ciudad." : "Brand, two competitors, sector or city missing."}</span>}
       </div>
     </div>

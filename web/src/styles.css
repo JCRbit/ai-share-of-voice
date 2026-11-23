@@ -445,3 +445,99 @@ svg .pop { transform-box: fill-box; transform-origin: center; animation: pop 0.4
 .send svg { transition: transform 0.2s var(--ease); }
 .send.sent svg { animation: fly 0.45s var(--ease); }
 .icon-btn:not(.send):not(:disabled):hover { border-color: var(--ink); }
+
+/* ---------------------------------------------------------------------------------------------
+   Call to action: mustard, like a highlighter on the page. Strong on paper, not red, and it
+   keeps ink text so it reads in both languages.
+   --------------------------------------------------------------------------------------------- */
+:root { --cta: #f2b632; --cta-dark: #d99a12; }
+.btn-cta { background: var(--cta); border-color: var(--ink); color: var(--ink); font-weight: 600; box-shadow: 3px 3px 0 var(--ink); }
+.btn-cta:hover:not(:disabled) { background: var(--cta); color: var(--ink); transform: translate(-2px, -2px); box-shadow: 5px 5px 0 var(--ink); }
+.btn-cta:active:not(:disabled) { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--ink); }
+.btn-cta:disabled { background: #efe7d6; border-color: var(--rule); color: var(--muted); box-shadow: none; opacity: 1; }
+.btn-cta.is-busy { cursor: progress; background: var(--cta-dark); }
+.l-head .btn-cta { padding: 10px 20px; }
+.spinner { width: 14px; height: 14px; border-radius: 99px; border: 2px solid currentColor; border-right-color: transparent; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------------------------------------------------------------------------------------------
+   El método: steps on the left, the open step on the right with its own small picture.
+   --------------------------------------------------------------------------------------------- */
+.method { border-top: 1px solid var(--ink); }
+.lead-sm { font-size: 19px; color: var(--ink-2); max-width: 680px; margin: -16px 0 40px; }
+.method-grid { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 40px; align-items: start; }
+.method-steps { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--ink); }
+.method-steps li { border-bottom: 1px solid var(--rule); }
+.method-steps button { width: 100%; display: flex; gap: 14px; align-items: baseline; text-align: left; padding: 16px 4px; border: 0; background: transparent; font-size: 17px; color: var(--ink-2); position: relative; transition: color 0.2s, padding 0.3s var(--ease); }
+.method-steps button .mono { font-size: 12px; color: var(--muted); }
+.method-steps button::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--rust); transform: scaleY(0); transform-origin: top; transition: transform 0.3s var(--ease); }
+.method-steps button:hover { color: var(--ink); }
+.method-steps button.on { color: var(--ink); font-weight: 600; padding-left: 16px; }
+.method-steps button.on::before { transform: scaleY(1); }
+.method-steps button.on .mono { color: var(--rust); }
+.method-detail { background: var(--sheet); border: 1px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); padding: 28px; animation: rise 0.45s var(--ease) both; }
+.method-detail h3 { margin: 0 0 8px; font-family: var(--serif); font-weight: 400; font-size: 32px; line-height: 1.1; }
+.method-detail > p { margin: 0 0 18px; font-size: 17px; color: var(--ink-2); }
+.method-visual { background: var(--paper); border: 1px solid var(--rule-soft); padding: 18px; margin-bottom: 18px; min-height: 150px; }
+.method-detail dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 0; }
+.method-detail dt { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--rust-dark); margin-bottom: 4px; }
+.method-detail dd { margin: 0; font-size: 15px; color: var(--ink-2); }
+.method-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 22px; padding-top: 14px; border-top: 1px dashed var(--rule); }
+
+.mv-questions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.mv-questions li { display: flex; gap: 12px; align-items: center; background: var(--sheet); border: 1px solid var(--rule-soft); padding: 10px 12px; font-size: 15px; animation: rise 0.45s var(--ease) both; animation-delay: var(--d); }
+.mv-questions .mono { font-size: 11px; color: var(--rust); }
+.mv-questions .ok { margin-left: auto; font-family: var(--mono); font-size: 10px; text-transform: uppercase; color: var(--green); border: 1px solid var(--green); padding: 1px 6px; white-space: nowrap; }
+.mv-rounds { display: flex; flex-direction: column; gap: 12px; }
+.mv-round { display: grid; grid-template-columns: 70px 1fr; align-items: center; gap: 12px; }
+.mv-round .mono { font-size: 11px; color: var(--muted); }
+.mv-round > div { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+.mv-round i { height: 16px; background: var(--ink); opacity: 0; animation: fade 0.25s ease-out both; animation-delay: calc(var(--d) + var(--i) * 0.05s); }
+.mv-marks { margin: 0; font-size: 17px; line-height: 1.7; }
+.mv-legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; font-size: 13px; color: var(--muted); }
+.mv-clusters { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 8px; }
+.mv-clusters > div { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0 6px; border: 1px solid var(--rule); background: var(--sheet); animation: rise 0.4s var(--ease) both; animation-delay: var(--d); }
+.mv-clusters i { width: 12px; height: 12px; border-radius: 99px; border: 1.5px solid var(--ink); }
+.mv-clusters i.on { background: var(--ink); }
+.mv-clusters .mono { font-size: 10px; color: var(--muted); }
+.mv-clusters p { grid-column: 1 / -1; margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.mv-review p { margin: 0 0 10px; font-size: 16px; }
+.mv-review .mono { font-size: 10px; color: var(--muted); margin-right: 6px; }
+.mv-review .obj { border-left: 3px solid var(--rust); padding: 6px 10px; background: var(--rust-wash); font-size: 14px; }
+.mv-review .row { gap: 10px; pointer-events: none; }
+
+/* ---------------------------------------------------------------------------------------------
+   Quiénes somos
+   --------------------------------------------------------------------------------------------- */
+.team { border-top: 1px solid var(--ink); }
+.team-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+.team-grid li { background: var(--sheet); border: 1px solid var(--ink); padding: 22px; display: flex; flex-direction: column; gap: 8px; transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease); }
+.team-grid li:hover { transform: translate(-3px, -3px); box-shadow: 6px 6px 0 var(--ink); }
+.team-grid .initial { width: 52px; height: 52px; border-radius: 99px; background: var(--ink); color: var(--paper); display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-size: 28px; }
+.team-grid li:nth-child(2) .initial { background: var(--rust); }
+.team-grid li:nth-child(3) .initial { background: var(--green); }
+.team-grid li:nth-child(4) .initial { background: var(--cta); color: var(--ink); }
+.team-grid h3 { margin: 6px 0 0; font-family: var(--serif); font-weight: 400; font-size: 28px; }
+.team-grid p { margin: 0; font-size: 15px; color: var(--ink-2); }
+.team-grid .links { display: flex; gap: 14px; flex-wrap: wrap; margin-top: auto; padding-top: 8px; }
+.team-grid .links a { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--ink); }
+.tag-soon { display: inline-flex; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border: 1px dashed var(--muted); color: var(--muted); }
+.team-foot { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; margin-top: 32px; }
+.team-foot .btn svg { flex: none; }
+
+@media (max-width: 1100px) {
+  .team-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .method-grid { grid-template-columns: 1fr; gap: 20px; }
+  .method-steps { display: flex; overflow-x: auto; border-top: 0; gap: 6px; padding-bottom: 6px; }
+  .method-steps li { border: 0; flex: none; }
+  .method-steps button { border: 1px solid var(--rule); padding: 8px 12px; font-size: 14px; white-space: nowrap; }
+  .method-steps button.on { padding-left: 12px; background: var(--ink); color: var(--paper); }
+  .method-steps button.on .mono { color: var(--cta); }
+  .method-steps button::before { display: none; }
+  .method-detail { padding: 18px; box-shadow: 4px 4px 0 var(--ink); }
+  .method-detail dl { grid-template-columns: 1fr; }
+  .mv-clusters { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .team-grid { grid-template-columns: 1fr; }
+}
