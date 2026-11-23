@@ -75,6 +75,27 @@ not measurements of a real AI provider.
 Trend comparisons match brand, sector, city and measured model. Each point identifies its
 question set; changes across different or unknown panels are not called clear changes.
 
+## Chat app (React + FastAPI, preview)
+
+A second front end lives in `web/`: a landing page and a chat where you type the brief in one
+sentence, review the neutral questions, watch the rounds and the certainty funnel, read the
+paged report and approve it. It uses the same graph, statistics and approval as the Gradio app.
+
+```bash
+cd web && npm install && npm run build && cd ..
+python serve.py --simulated        # http://127.0.0.1:8000, free, no API key
+python serve.py                    # live mode: reads .env, set DEMO_PASSWORD before showing it
+```
+
+For front-end work run `npm run dev` in `web/` (port 5173, proxies `/api` to port 8000).
+
+- Every answer in the chat after a run is built from the computed figures, never free model text.
+- Endpoints that can spend budget need the demo password in live mode and respect the spend cap.
+- Downloads are limited to a fixed list of files inside the run folder, and requests are rate limited.
+- Parts that are not connected yet say «Próximamente»; example figures carry the «Ejemplo» tag.
+- In simulated mode the run finishes in seconds, so the chat replays it at a readable pace and
+  says so («Reproducción acelerada»).
+
 ## Configuration and live mode
 
 Copy [`.env.example`](.env.example) to `.env` and fill in your own credentials. `.env` and
