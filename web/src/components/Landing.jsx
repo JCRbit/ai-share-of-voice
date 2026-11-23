@@ -126,7 +126,7 @@ export default function Landing({ lang, setLang, go }) {
 
         <section className="hero">
           <div className="copy">
-            <h1 className="enter" style={{ "--d": "0.08s" }}>{es ? <>Le preguntamos a la IA por tu negocio. <em>Una y otra vez.</em></> : <>We ask the AI about your business. <em>Again and again.</em></>}</h1>
+            <h1 className="enter" style={{ "--d": "0.08s" }}>{es ? <>¿La IA menciona o <em>recomienda</em> tu negocio?</> : <>Does the AI mention or <em>recommend</em> your business?</>}</h1>
             <p className="lead enter" style={{ "--d": "0.2s" }}>
               {es
                 ? "Tus clientes ya no buscan: preguntan. Hacemos esas mismas preguntas 10, 30 o 100 veces, contamos quién sale y quién se recomienda, y te decimos con honestidad cuánto puedes fiarte del resultado."
