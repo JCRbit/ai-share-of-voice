@@ -11,7 +11,7 @@ LangGraph and MCP.
 
 ## Current status
 
-The `local/e-integration` branch includes a working local Gradio application in Spanish and
+The `feat/ai-share-of-voice-app` branch includes a working local Gradio application in Spanish and
 English, with a simulated demo and a live measurement path. It supports question review,
 batched sampling, deterministic statistics, business discovery, web research through MCP,
 optional chart vision, report drafting, skeptic review and human approval.
@@ -296,6 +296,16 @@ On Windows without activation, replace `python` with `.\.venv\Scripts\python.exe
 If `make` is available, `make install` installs development dependencies and `make check`
 runs the same lint, formatting and test checks. Tests use simulated clients and fixtures;
 API keys are not required.
+
+## Contributors
+
+| Who | GitHub | Area | What they own |
+| --- | --- | --- | --- |
+| E | [@adryeli](https://github.com/adryeli) | Data & Statistics | Wilson and bootstrap intervals, the stopping rule, the stats tool and charts, the results tab, the methodology section, the glossary, the demo data and the integrated local app (question review, business discovery, trends, report drafting). |
+| J | [@JCRbit](https://github.com/JCRbit) | Agents & Orchestration | The LangGraph workflow with human approval and SQLite checkpoints, the shared Pydantic contracts, the seven CrewAI agents, the Skeptic review, error handling and partial closes, the report and tracking CSV, the architecture and ethics documents. |
+| An | [@Anasfady](https://github.com/Anasfady) | Integrations & Platform | Repository setup and quality checks, the budgeted model client, the MCP sources server and its client, vision analysis, the `mock_run.py` simulation and the Gradio app skeleton. |
+
+Roles follow the [project plan](docs/PROJECT_PLAN.md); the git history shows the exact changes.
 
 ## Project documentation
 

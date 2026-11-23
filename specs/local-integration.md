@@ -1,6 +1,6 @@
 # Spec — Local end-to-end integration (E)
 
-Branch: `local/e-integration` (local only, push blocked by config). Base: `feat/stats-results-tab`.
+Branch: `feat/ai-share-of-voice-app` (renamed from `local/e-integration`). Base: `feat/stats-results-tab`.
 Goal: a working app that runs a real measurement end to end, without waiting for other teammates'
 PRs. Nothing here is pushed; pieces that prove useful go upstream later as normal PRs by their owner.
 
