@@ -394,17 +394,22 @@ export default function ChatApp({ lang, setLang }) {
           )}
           <div className="inputbar">
             <label htmlFor="msg" className="sr-only">{t(lang, "send")}</label>
+            {showExamples && <span id="msg-hint" className="sr-only">{es ? "Pulsa Tab para usar el ejemplo que aparece." : "Press Tab to use the example shown."}</span>}
             <div className="input-wrap">
               <textarea id="msg" ref={inputRef} rows={1} value={input}
                 onChange={(e) => { setInput(e.target.value); const el = e.target; el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 160)}px`; }}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) submit(e);
+                  // Tab on an empty box takes the example it is showing.
+                  if (e.key === "Tab" && !e.shiftKey && showExamples && !input) { e.preventDefault(); setInput(examples[phIdx % examples.length]); }
+                }}
+                aria-describedby={showExamples ? "msg-hint" : undefined}
                 placeholder={showExamples ? "" : conv.runId ? t(lang, "placeholderRun") : t(lang, "placeholder")} />
               {showExamples && !input && (
-                <button type="button" key={`${lang}-${phIdx}`} className="ph" tabIndex={-1} aria-hidden="true"
-                  title={es ? "Usar este ejemplo" : "Use this example"}
-                  onClick={() => { setInput(examples[phIdx % examples.length]); inputRef.current?.focus(); }}>
-                  {examples[phIdx % examples.length]}
-                </button>
+                <span key={`${lang}-${phIdx}`} className="ph" aria-hidden="true">
+                  <span className="ph-text">{examples[phIdx % examples.length]}</span>
+                  <kbd>Tab</kbd>
+                </span>
               )}
             </div>
             <button type="button" className="icon-btn" disabled aria-label={`${t(lang, "voice")} · ${t(lang, "soon")}`}

@@ -434,8 +434,9 @@ svg .pop { transform-box: fill-box; transform-origin: center; animation: pop 0.4
 .inputbar:focus-within { border-color: var(--rust); box-shadow: 0 6px 22px rgba(28, 26, 23, 0.12); transform: translateY(-2px); }
 .input-wrap { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
 .input-wrap textarea { width: 100%; transition: height 0.15s var(--ease); }
-.ph { position: absolute; left: 0; right: 0; top: 9px; border: 0; background: transparent; padding: 0; text-align: left; color: var(--muted); font: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: text; animation: ph-in 3.6s var(--ease) both; }
-.ph:hover { color: var(--ink-2); }
+.ph { position: absolute; left: 0; right: 0; top: 9px; display: flex; align-items: center; gap: 8px; color: var(--muted); pointer-events: none; animation: ph-in 3.6s var(--ease) both; }
+.ph-text { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ph kbd { flex: none; font-family: var(--mono); font-size: 10px; padding: 1px 6px; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 5px; color: var(--muted); background: var(--paper); }
 .inputbar:focus-within .ph { opacity: 0.55; }
 .send { transition: background 0.2s, transform 0.2s var(--ease), opacity 0.2s; }
 .send:disabled { opacity: 0.45; transform: scale(0.92); }
