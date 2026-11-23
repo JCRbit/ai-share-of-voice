@@ -21,12 +21,52 @@ function newConversation(lang) {
   };
 }
 
+const PLACEHOLDER_EXAMPLES = {
+  es: [
+    "Glovo frente a Just Eat y Uber Eats, comida a domicilio en Madrid",
+    "Mercadona frente a Carrefour, Lidl y Dia, supermercados en Valencia",
+    "Basic-Fit frente a McFit y Anytime Fitness, gimnasios en Sevilla",
+    "Banco Santander frente a BBVA y CaixaBank, banca en Bilbao",
+  ],
+  en: [
+    "Glovo vs Just Eat and Uber Eats, food delivery in Madrid",
+    "Mercadona vs Carrefour, Lidl and Dia, supermarkets in Valencia",
+    "Basic-Fit vs McFit and Anytime Fitness, gyms in Seville",
+    "Banco Santander vs BBVA and CaixaBank, banking in Bilbao",
+  ],
+};
+
+// What I'm doing while you wait, said plainly, with a sketch of the card that is coming.
+function Thinking({ lang, stage, hasBrief }) {
+  const es = lang === "es";
+  const preparing = stage === "brief" && hasBrief;
+  const label = stage === "brief"
+    ? (preparing ? (es ? "Preparando preguntas que no nombran ninguna marca" : "Writing questions that name no brand") : (es ? "Leyendo lo que me has escrito" : "Reading what you wrote"))
+    : (es ? "Buscando la respuesta en las cifras" : "Looking for the answer in the figures");
+  return (
+    <div className="msg-ai thinking" role="status" aria-live="polite">
+      <div className="avatar" aria-hidden="true">A</div>
+      <div className="body">
+        <span className="think-line">{label}<span className="wave" aria-hidden="true"><i /><i /><i /></span></span>
+        {(stage === "brief") && (
+          <div className="skeleton-card" aria-hidden="true">
+            {(preparing ? [92, 78, 85, 70, 88] : [40, 64, 52]).map((w, k) => <i key={k} style={{ width: `${w}%`, animationDelay: `${k * 0.08}s` }} />)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ChatApp({ lang, setLang }) {
   const [meta, setMeta] = useState(null);
   const [history, setHistory] = useState([]);
   const [conv, setConv] = useState(() => newConversation(lang));
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false); // the send arrow flies off for a moment
+  const [phIdx, setPhIdx] = useState(0); // which example sentence the empty chat box shows
+  const inputRef = useRef(null);
   const [askPassword, setAskPassword] = useState(null); // a function to retry after the password
   const [run, setRun] = useState(null); // latest run view from the API
   const [revealed, setRevealed] = useState(0);
@@ -231,11 +271,23 @@ export default function ChatApp({ lang, setLang }) {
 
   const reset = () => { setConv(newConversation(lang)); setRun(null); setResults(null); setAnswers([]); setPanelOpen(false); setRevealed(0); };
 
+  // While the chat waits for a brief, the empty box cycles through sentences people can copy.
+  const examples = PLACEHOLDER_EXAMPLES[lang] || PLACEHOLDER_EXAMPLES.es;
+  const showExamples = conv.stage === "brief" && !conv.brief;
+  useEffect(() => {
+    if (!showExamples) return undefined;
+    const id = setInterval(() => setPhIdx((n) => n + 1), 3600);
+    return () => clearInterval(id);
+  }, [showExamples]);
+  useEffect(() => { if (!input && inputRef.current) inputRef.current.style.height = "auto"; }, [input]);
+
   const submit = (e) => {
     e?.preventDefault();
     const text = input.trim();
     if (!text || busy) return;
     setInput("");
+    setSent(true);
+    setTimeout(() => setSent(false), 450);
     if (conv.stage === "brief") sendBrief(text);
     else if (conv.runId && (conv.stage === "review" || conv.stage === "done")) askAbout(text);
     else say("ai", es ? "Te contesto en cuanto termine esta parte." : "I'll answer as soon as this part is done.");
@@ -284,6 +336,7 @@ export default function ChatApp({ lang, setLang }) {
 
       <main className="main">
         <div className="topbar">
+          {(busy || run?.phase === "running") && <div className="progress-line" aria-hidden="true" />}
           <span className="title">{conv.title || t(lang, "newRun").replace("＋ ", "")}</span>
           <span className="row">
             <button className="btn-link only-mobile" onClick={reset}>{t(lang, "newRun").replace("＋ ", "")}</button>
@@ -329,7 +382,7 @@ export default function ChatApp({ lang, setLang }) {
                 </div>
               ),
             )}
-            {busy && <div className="msg-ai"><div className="avatar" aria-hidden="true">A</div><div className="typing" aria-label="…"><i /><i /><i /></div></div>}
+            {busy && <Thinking lang={lang} stage={conv.stage} hasBrief={!!conv.brief} />}
           </div>
         </div>
 
@@ -341,14 +394,24 @@ export default function ChatApp({ lang, setLang }) {
           )}
           <div className="inputbar">
             <label htmlFor="msg" className="sr-only">{t(lang, "send")}</label>
-            <textarea id="msg" rows={1} value={input} onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }}
-              placeholder={conv.runId ? t(lang, "placeholderRun") : t(lang, "placeholder")} />
+            <div className="input-wrap">
+              <textarea id="msg" ref={inputRef} rows={1} value={input}
+                onChange={(e) => { setInput(e.target.value); const el = e.target; el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 160)}px`; }}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }}
+                placeholder={showExamples ? "" : conv.runId ? t(lang, "placeholderRun") : t(lang, "placeholder")} />
+              {showExamples && !input && (
+                <button type="button" key={`${lang}-${phIdx}`} className="ph" tabIndex={-1} aria-hidden="true"
+                  title={es ? "Usar este ejemplo" : "Use this example"}
+                  onClick={() => { setInput(examples[phIdx % examples.length]); inputRef.current?.focus(); }}>
+                  {examples[phIdx % examples.length]}
+                </button>
+              )}
+            </div>
             <button type="button" className="icon-btn" disabled aria-label={`${t(lang, "voice")} · ${t(lang, "soon")}`}
               title={es ? "Próximamente. La voz enviaría tu audio a un servicio externo; te avisaremos antes." : "Coming soon. Voice would send your audio to an external service; we'll tell you first."}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
             </button>
-            <button type="submit" className="icon-btn send" aria-label={t(lang, "send")} disabled={busy || !input.trim()}>
+            <button type="submit" className={`icon-btn send ${input.trim() ? "ready" : ""} ${sent ? "sent" : ""}`} aria-label={t(lang, "send")} disabled={busy || !input.trim()}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
             </button>
           </div>
@@ -555,7 +618,12 @@ function LivePanel({ run, funnel, answers, meta, lang, client, replay, caughtUp 
               <Highlighted text={a.text.length > 220 ? a.text.slice(0, 220) + "…" : a.text} mentions={a.mentions} client={client} />
             </div>
           ))}
-          {!answers.length && <span className="muted" style={{ fontSize: 14 }}>{es ? "Esperando la primera ronda…" : "Waiting for the first round…"}</span>}
+          {!answers.length && (
+            <>
+              <span className="muted" style={{ fontSize: 14 }}>{es ? "Esperando la primera ronda…" : "Waiting for the first round…"}</span>
+              {[0, 1, 2].map((k) => <div key={k} className="skeleton-answer" aria-hidden="true"><i /><i /><i /></div>)}
+            </>
+          )}
         </div>
       </div>
     </>
