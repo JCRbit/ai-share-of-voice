@@ -43,10 +43,11 @@ function TrustStat({ lang }) {
           ? "Si la mitad de la gente está dispuesta a fiarse de la IA, lo que la IA diga de tu negocio cuenta. Por eso lo medimos."
           : "If half of people are willing to trust AI, what AI says about your business matters. That's why we measure it."}
       </p>
-      <p className="trust-src">
-        {es ? "Fuente: " : "Source: "}
-        <a href={TRUST_SOURCE} target="_blank" rel="noreferrer noopener">KPMG y Universidad de Melbourne, «Trust, attitudes and use of AI», Spain insights (2025)</a>
-      </p>
+      <a className="trust-src" href={TRUST_SOURCE} target="_blank" rel="noreferrer noopener"
+        title="KPMG y Universidad de Melbourne, «Trust, attitudes and use of AI», Spain insights (2025)"
+        aria-label={es ? "Fuente: KPMG y Universidad de Melbourne, Spain insights 2025" : "Source: KPMG and University of Melbourne, Spain insights 2025"}>
+        {es ? "Fuente" : "Source"} ↗
+      </a>
     </aside>
   );
 }
