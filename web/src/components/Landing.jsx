@@ -26,6 +26,31 @@ const EXAMPLE_ANSWERS = {
   ],
 };
 
+// Why it matters, from a published survey. Figures copied from the source, never rounded or
+// made up; the source is linked on the page.
+const TRUST_SOURCE = "https://assets.kpmg.com/content/dam/kpmgsites/xx/pdf/2025/05/trust-attitudes-and-use-of-ai-spain-snapshot.pdf.coredownload.inline.pdf";
+
+function TrustStat({ lang }) {
+  const es = lang === "es";
+  return (
+    <aside className="trust enter" style={{ "--d": "0.16s" }} aria-label={es ? "Dato sobre la confianza en la IA" : "A figure on trust in AI"}>
+      <div className="trust-figs">
+        <div><span className="trust-n"><CountUp value={51} />%</span><span>{es ? "de la gente en España está dispuesta a confiar en la IA" : "of people in Spain are willing to trust AI"}</span></div>
+        <div><span className="trust-n"><CountUp value={72} duration={1300} />%</span><span>{es ? "no sabe si fiarse de lo que lee en internet, porque puede haberlo escrito una IA" : "are unsure whether online content can be trusted, as it may be AI-generated"}</span></div>
+      </div>
+      <p className="trust-why">
+        {es
+          ? "Si la mitad de la gente está dispuesta a fiarse de la IA, lo que la IA diga de tu negocio cuenta. Por eso lo medimos."
+          : "If half of people are willing to trust AI, what AI says about your business matters. That's why we measure it."}
+      </p>
+      <p className="trust-src">
+        {es ? "Fuente: " : "Source: "}
+        <a href={TRUST_SOURCE} target="_blank" rel="noreferrer noopener">KPMG y Universidad de Melbourne, «Trust, attitudes and use of AI», Spain insights (2025)</a>
+      </p>
+    </aside>
+  );
+}
+
 // The card asks its question again and again, the way the product does.
 function AnswerCard({ lang, answer, simulatedRun }) {
   const es = lang === "es";
@@ -129,6 +154,7 @@ export default function Landing({ lang, setLang, go }) {
         <section className="hero">
           <div className="copy">
             <h1 className="enter" style={{ "--d": "0.08s" }}>{es ? <>¿La IA menciona o <em>recomienda</em> tu negocio?</> : <>Does the AI mention or <em>recommend</em> your business?</>}</h1>
+            <TrustStat lang={lang} />
             <p className="lead enter" style={{ "--d": "0.2s" }}>
               {es
                 ? "Tus clientes ya no buscan: preguntan. Hacemos esas mismas preguntas 10, 30 o 100 veces, contamos quién sale y quién se recomienda, y te decimos con honestidad cuánto puedes fiarte del resultado."
