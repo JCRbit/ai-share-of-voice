@@ -36,7 +36,7 @@ function TrustStat({ lang }) {
     <aside className="trust enter" style={{ "--d": "0.16s" }} aria-label={es ? "Dato sobre la confianza en la IA" : "A figure on trust in AI"}>
       <div className="trust-figs">
         <div><span className="trust-n"><CountUp value={51} />%</span><span>{es ? "de la gente en España está dispuesta a confiar en la IA" : "of people in Spain are willing to trust AI"}</span></div>
-        <div><span className="trust-n"><CountUp value={72} duration={1300} />%</span><span>{es ? "no sabe si fiarse de lo que lee en internet, porque puede haberlo escrito una IA" : "are unsure whether online content can be trusted, as it may be AI-generated"}</span></div>
+        <div><span className="trust-n"><CountUp value={72} duration={1300} />%</span><span>{es ? "acepta o aprueba la IA" : "accept or approve of AI"}</span></div>
       </div>
       <p className="trust-why">
         {es
