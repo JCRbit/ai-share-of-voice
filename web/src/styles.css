@@ -552,3 +552,4 @@ svg .pop { transform-box: fill-box; transform-origin: center; animation: pop 0.4
 .trust-src { display: inline-flex; vertical-align: 2px; margin-left: 4px; white-space: nowrap; align-items: center; gap: 3px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); text-decoration: none; padding: 2px 7px; border: 1px solid var(--rule); border-radius: 99px; transition: color 0.2s, border-color 0.2s; }
 .trust-src:hover { color: var(--ink); border-color: var(--ink); }
 @media (max-width: 760px) { .trust-figs { grid-template-columns: 1fr; gap: 14px; } }
+.team-grid .role { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--rust-dark); }

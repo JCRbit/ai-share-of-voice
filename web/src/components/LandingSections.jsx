@@ -216,12 +216,13 @@ export function MethodSection({ lang, rules }) {
 
 export const REPO_URL = "https://github.com/adryeli/ai-share-of-voice";
 
-// Fill in summary, github and linkedin as each person sends them; empty fields are not shown.
+// Roles as the team gave them. GitHub handles come from the README contributors table;
+// empty fields are not shown.
 const TEAM = [
-  { name: "Anas", summary: { es: "", en: "" }, github: "", linkedin: "" },
-  { name: "Javier", summary: { es: "", en: "" }, github: "", linkedin: "" },
-  { name: "Eli", summary: { es: "", en: "" }, github: "", linkedin: "" },
-  { name: "Abdhur", summary: { es: "", en: "" }, github: "", linkedin: "" },
+  { name: "Anas", summary: { es: "Especialista en UX", en: "UX Expert" }, github: "https://github.com/Anasfady", linkedin: "" },
+  { name: "Javier", summary: { es: "Especialista en backend", en: "Backend Expert" }, github: "https://github.com/JCRbit", linkedin: "" },
+  { name: "Eli", summary: { es: "Especialista en producto", en: "Product Expert" }, github: "https://github.com/adryeli", linkedin: "" },
+  { name: "Abdur", summary: { es: "Especialista en testing", en: "Testing Expert" }, github: "", linkedin: "" },
 ];
 
 const GitHubIcon = () => (
@@ -249,7 +250,7 @@ export function TeamSection({ lang, go }) {
               <li key={m.name} data-reveal style={{ "--d": `${i * 0.08}s` }}>
                 <div className="initial" aria-hidden="true">{m.name[0]}</div>
                 <h3>{m.name}</h3>
-                {summary ? <p>{summary}</p> : <p className="muted"><span className="tag-soon">{t(lang, "soon")}</span></p>}
+                {summary ? <p className="role">{summary}</p> : <p className="muted"><span className="tag-soon">{t(lang, "soon")}</span></p>}
                 <div className="links">
                   {m.github && <a href={m.github} target="_blank" rel="noreferrer noopener"><GitHubIcon /> GitHub</a>}
                   {m.linkedin && <a href={m.linkedin} target="_blank" rel="noreferrer noopener"><LinkedInIcon /> LinkedIn</a>}

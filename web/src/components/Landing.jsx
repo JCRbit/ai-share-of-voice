@@ -149,7 +149,7 @@ export default function Landing({ lang, setLang, go }) {
 
       <div className="wrap">
         <div className="dateline enter" style={{ "--d": "0s" }}>
-          <span>{es ? "Informe de campo" : "Field report"} {isExample && <span className="tag-example">{t(lang, "exampleTag")}</span>}</span>
+          <span>{es ? "Informe de campo" : "Field report"}</span>
           <span>{data.city}{!isExample && real.date ? ` · ${real.date}` : ""}</span>
           <span>{data.n_answers} {t(lang, "answers")} · {data.n_questions} {es ? "preguntas" : "questions"} · {es ? "1 modelo" : "1 model"}</span>
         </div>
@@ -188,10 +188,7 @@ export default function Landing({ lang, setLang, go }) {
             <p className="serif" style={{ fontSize: 30, lineHeight: 1.2, fontStyle: "italic", color: "#f4efe6", margin: 0 }}>
               {es ? "«Salir no es lo mismo que ser elegido.»" : "“Showing up is not the same as being picked.”"}
             </p>
-            <p style={{ fontSize: 13 }}>
-              {isExample ? <span className="tag-example" style={{ color: "#cfc7ba", borderColor: "#cfc7ba" }}>{t(lang, "exampleTag")}</span> : null}{" "}
-              {t(lang, "sample")}
-            </p>
+
           </div>
         </div>
       </section>
@@ -217,14 +214,10 @@ export default function Landing({ lang, setLang, go }) {
                 <div className="n"><CountUp value={plans ? plans[k].answers : { quick: 10, standard: 30, deep: 100 }[k]} duration={900} /></div>
                 <div>{t(lang, "answers")}{plans ? ` · ${plans[k].questions} ${es ? "preguntas" : "questions"} × ${plans[k].rounds} ${es ? "rondas" : "rounds"}` : ""}</div>
                 <div className="muted" style={{ fontSize: 14 }}>
-                  {plans ? (meta.mode === "live" ? `${duration(plans[k].seconds, lang)} ${es ? "(medido: ~25 s por respuesta)" : "(measured: ~25 s per answer)"}` : (es ? "en modo demostración, unos segundos" : "in demo mode, a few seconds")) : ""}
+                  {plans && meta.mode === "live" ? `${duration(plans[k].seconds, lang)} ${es ? "(medido: ~25 s por respuesta)" : "(measured: ~25 s per answer)"}` : ""}
                 </div>
               </div>
             ))}
-          </div>
-          <div className="example-box" style={{ marginTop: 24, display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-            <span>{t(lang, "exampleView")}</span>
-            <span className="tag-example">{es ? "Vídeo de la demo · Próximamente" : "Demo video · Coming soon"}</span>
           </div>
         </div>
       </section>
@@ -247,7 +240,7 @@ export default function Landing({ lang, setLang, go }) {
 
       <footer className="l-foot">
         <div className="wrap">
-          <p className="serif" style={{ margin: 0, fontSize: 22 }}>{es ? "Hecho en Madrid por Anas, Javier, Eli y Abdhur." : "Made in Madrid by Anas, Javier, Eli and Abdhur."}</p>
+          <p className="serif" style={{ margin: 0, fontSize: 22 }}>{es ? "Hecho en Madrid por Anas, Javier, Eli y Abdur." : "Made in Madrid by Anas, Javier, Eli and Abdur."}</p>
           <span className="mono muted" style={{ fontSize: 12 }}>{t(lang, "sample")}</span>
         </div>
       </footer>
